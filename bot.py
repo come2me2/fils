@@ -107,9 +107,9 @@ async def send_q1(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     )
     kb = InlineKeyboardMarkup([
         [InlineKeyboardButton("1️⃣ Просторная гостиная", callback_data="q1_1")],
-        [InlineKeyboardButton("2️⃣ Квартира-студия", callback_data="q1_2")],
-        [InlineKeyboardButton("3️⃣ Кабинет / офис", callback_data="q1_3")],
-        [InlineKeyboardButton("4️⃣ Дом за городом", callback_data="q1_4")],
+        [InlineKeyboardButton("2️⃣ Студия", callback_data="q1_2")],
+        [InlineKeyboardButton("3️⃣ Офис / кабинет", callback_data="q1_3")],
+        [InlineKeyboardButton("4️⃣ Загородный дом", callback_data="q1_4")],
     ])
     await update.effective_chat.send_message(text, reply_markup=kb)
 
@@ -134,10 +134,10 @@ async def send_q2(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         "Что для тебя важнее всего?"
     )
     kb = InlineKeyboardMarkup([
-        [InlineKeyboardButton("1️⃣ Максимальный комфорт — хочется “утонуть” в мягкости", callback_data="q2_1")],
-        [InlineKeyboardButton("2️⃣ Минимализм и четкие формы", callback_data="q2_2")],
-        [InlineKeyboardButton("3️⃣ Современный дизайн и вау-эффект", callback_data="q2_3")],
-        [InlineKeyboardButton("4️⃣ Много места и модульность", callback_data="q2_4")],
+        [InlineKeyboardButton("1️⃣ Максимальный комфорт", callback_data="q2_1")],
+        [InlineKeyboardButton("2️⃣ Минимализм, чёткие линии", callback_data="q2_2")],
+        [InlineKeyboardButton("3️⃣ Вау‑дизайн", callback_data="q2_3")],
+        [InlineKeyboardButton("4️⃣ Модульность, простор", callback_data="q2_4")],
     ])
     await update.effective_chat.send_message(text, reply_markup=kb)
 
@@ -165,7 +165,7 @@ async def send_q3(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         [InlineKeyboardButton("1️⃣ Современный минимализм", callback_data="q3_1")],
         [InlineKeyboardButton("2️⃣ Лофт / урбан", callback_data="q3_2")],
         [InlineKeyboardButton("3️⃣ Современная классика", callback_data="q3_3")],
-        [InlineKeyboardButton("4️⃣ Хочу, чтобы выглядел дорого и спокойно", callback_data="q3_4")],
+        [InlineKeyboardButton("4️⃣ Дорого и спокойно", callback_data="q3_4")],
     ])
     await update.effective_chat.send_message(text, reply_markup=kb)
 
@@ -190,10 +190,10 @@ async def send_q4(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         "Что ты ожидаешь от дивана?"
     )
     kb = InlineKeyboardMarkup([
-        [InlineKeyboardButton("1️⃣ Чтобы был мягким, уютным, как облако ☁️", callback_data="q4_1")],
-        [InlineKeyboardButton("2️⃣ Чтобы вписался идеально в интерьер — строго и стильно", callback_data="q4_2")],
-        [InlineKeyboardButton("3️⃣ Чтобы можно было трансформировать под разные ситуации", callback_data="q4_3")],
-        [InlineKeyboardButton("4️⃣ Чтобы стал акцентом комнаты", callback_data="q4_4")],
+        [InlineKeyboardButton("1️⃣ Мягкий и уютный ☁️", callback_data="q4_1")],
+        [InlineKeyboardButton("2️⃣ Строго и стильно", callback_data="q4_2")],
+        [InlineKeyboardButton("3️⃣ Трансформируемый", callback_data="q4_3")],
+        [InlineKeyboardButton("4️⃣ Акцент в комнате", callback_data="q4_4")],
     ])
     await update.effective_chat.send_message(text, reply_markup=kb)
 
