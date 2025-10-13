@@ -314,7 +314,7 @@ async def on_contact(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
 
     # Acknowledge to user
     await update.effective_chat.send_message(
-        "Спасибо! Дизайнер FILS свяжется с тобой в ближайшее время.",
+        "✅ Заявка принята. Менеджер FILS свяжется с вами в ближайшее время.",
         reply_markup=ReplyKeyboardRemove(),
     )
 
