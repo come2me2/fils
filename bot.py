@@ -38,6 +38,8 @@ URL_ALL = "https://filsdesign.ru/sofas"
 # Keys for user_data
 UD_ANSWERS = "answers"  # List[int]
 UD_RESULT = "result"     # str model key
+UD_AWAITING_CONTACT = "awaiting_contact"  # bool
+UD_CONTACT_RECEIVED = "contact_received"  # bool
 
 MODELS = {
     "CLOUD": {
@@ -300,6 +302,8 @@ async def send_result_and_contact(update: Update, context: ContextTypes.DEFAULT_
         "Хочешь, подберём ткань и конфигурацию под твой интерьер?\n"
         "Оставь свой контакт, и дизайнер FILS свяжется с тобой лично."
     )
+    context.user_data[UD_AWAITING_CONTACT] = True
+    context.user_data[UD_CONTACT_RECEIVED] = False
     contact_kb = ReplyKeyboardMarkup(
         [[KeyboardButton(text="📞 Оставить контакт", request_contact=True)]],
         resize_keyboard=True,
@@ -309,24 +313,69 @@ async def send_result_and_contact(update: Update, context: ContextTypes.DEFAULT_
 
 
 async def on_contact(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    # Only process if we're expecting a contact
+    if not context.user_data.get(UD_AWAITING_CONTACT, False):
+        return
+
     contact = update.message.contact
     user = update.effective_user
 
+    # Mark received to avoid duplicates
+    context.user_data[UD_CONTACT_RECEIVED] = True
+    context.user_data[UD_AWAITING_CONTACT] = False
+
     # Acknowledge to user
-    await update.effective_chat.send_message(
-        "✅ Заявка принята. Менеджер FILS свяжется с вами в ближайшее время.",
-        reply_markup=ReplyKeyboardRemove(),
-    )
+    try:
+        await update.effective_chat.send_message(
+            "✅ Заявка принята. Менеджер FILS свяжется с вами в ближайшее время.",
+            reply_markup=ReplyKeyboardRemove(),
+        )
+    except Exception:
+        pass
 
     # Forward summary to manager
+    await forward_to_manager(context, user_full_name=user.full_name, username=user.username, user_id=user.id,
+                             phone=contact.phone_number, name=f"{contact.first_name} {contact.last_name or ''}")
+
+
+async def on_phone_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    # Accept plain text phone numbers as a fallback
+    if not context.user_data.get(UD_AWAITING_CONTACT, False):
+        return
+
+    text = (update.message.text or "").strip()
+    digits = [c for c in text if c.isdigit()]
+    if len(digits) < 7:
+        return  # not a phone-like text
+
+    user = update.effective_user
+    context.user_data[UD_CONTACT_RECEIVED] = True
+    context.user_data[UD_AWAITING_CONTACT] = False
+
+    # Confirm to user
+    try:
+        await update.effective_chat.send_message(
+            "✅ Заявка принята. Менеджер FILS свяжется с вами в ближайшее время.",
+            reply_markup=ReplyKeyboardRemove(),
+        )
+    except Exception:
+        pass
+
+    # Forward summary to manager
+    await forward_to_manager(context, user_full_name=user.full_name, username=user.username, user_id=user.id,
+                             phone=text, name=user.full_name)
+
+
+async def forward_to_manager(context: ContextTypes.DEFAULT_TYPE, *, user_full_name: str, username: str, user_id: int,
+                             phone: str, name: str) -> None:
     try:
         answers = context.user_data.get(UD_ANSWERS, [])
         model_key = context.user_data.get(UD_RESULT, "?")
         lines = [
             "Новая заявка из бота FILS Design — подбор дивана:",
-            f"Пользователь: {user.full_name} (@{user.username or '-'}; id={user.id})",
-            f"Телефон: {contact.phone_number}",
-            f"Имя (из контакта): {contact.first_name} {contact.last_name or ''}",
+            f"Пользователь: {user_full_name} (@{username or '-'}; id={user_id})",
+            f"Телефон: {phone}",
+            f"Имя: {name}",
             "",
             "Ответы квиза:",
         ]
@@ -341,7 +390,7 @@ async def on_contact(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         if manager_chat_id:
             await context.bot.send_message(chat_id=manager_chat_id, text="\n".join(lines))
     except Exception:
-        # Avoid breaking user flow if manager ID misconfigured
+        # Silent failure to not break user UX
         pass
 
 
@@ -370,6 +419,8 @@ def build_application() -> Application:
 
     # Contact messages
     app.add_handler(MessageHandler(filters.CONTACT, on_contact))
+    # Fallback: accept phone numbers typed as text
+    app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), on_phone_text))
 
     return app
 
