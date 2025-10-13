@@ -66,8 +66,8 @@ async def telegram_webhook(request: Request, x_telegram_bot_api_secret_token: Op
         await ptb_app.start()
         _initialized = True
 
-    # Parse update and process
+    # Parse update and process asynchronously to return HTTP 200 ASAP
     update = Update.de_json(data=data, bot=ptb_app.bot)
-    await ptb_app.process_update(update)
+    asyncio.create_task(ptb_app.process_update(update))
 
     return JSONResponse({"ok": True})
