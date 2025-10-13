@@ -89,6 +89,11 @@ async def on_start_quiz(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     query = update.callback_query
     await query.answer()
     context.user_data[UD_ANSWERS] = []
+    # Remove the greeting message with the start button
+    try:
+        await query.message.delete()
+    except Exception:
+        pass
     await send_q1(update, context)
 
 
@@ -112,6 +117,11 @@ async def handle_q1(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await query.answer()
     choice = int(query.data.split("_")[1])
     context.user_data.setdefault(UD_ANSWERS, []).append(("Q1", choice))
+    # Delete current question message
+    try:
+        await query.message.delete()
+    except Exception:
+        pass
     await send_q2(update, context)
 
 
@@ -135,6 +145,11 @@ async def handle_q2(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await query.answer()
     choice = int(query.data.split("_")[1])
     context.user_data.setdefault(UD_ANSWERS, []).append(("Q2", choice))
+    # Delete current question message
+    try:
+        await query.message.delete()
+    except Exception:
+        pass
     await send_q3(update, context)
 
 
@@ -158,6 +173,11 @@ async def handle_q3(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await query.answer()
     choice = int(query.data.split("_")[1])
     context.user_data.setdefault(UD_ANSWERS, []).append(("Q3", choice))
+    # Delete current question message
+    try:
+        await query.message.delete()
+    except Exception:
+        pass
     await send_q4(update, context)
 
 
@@ -181,6 +201,11 @@ async def handle_q4(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await query.answer()
     choice = int(query.data.split("_")[1])
     context.user_data.setdefault(UD_ANSWERS, []).append(("Q4", choice))
+    # Delete current question message
+    try:
+        await query.message.delete()
+    except Exception:
+        pass
 
     model_key = compute_recommendation(context.user_data.get(UD_ANSWERS, []))
     context.user_data[UD_RESULT] = model_key
