@@ -28,6 +28,35 @@ cp .env.example .env
 python bot.py
 ```
 
+## Деплой на Vercel (webhook)
+Бот на Vercel работает как serverless webhook (без long polling).
+
+1) Репозиторий уже подготовлен: `api/telegram.py` (FastAPI) и `vercel.json`.
+
+2) Создайте проект на Vercel (через Dashboard или `vercel` CLI), подключив этот репозиторий.
+
+3) В настройках проекта Vercel задайте переменные окружения:
+   - `TELEGRAM_BOT_TOKEN`
+   - `MANAGER_CHAT_ID`
+   - `MESSAGE_DELAY_SECONDS` (опц.)
+   - `TELEGRAM_WEBHOOK_SECRET` — секрет для проверки заголовка Telegram.
+
+4) После деплоя получите домен проекта, например: `https://your-project.vercel.app`.
+
+5) Установите webhook в Telegram (подставьте свой домен и секрет):
+```bash
+curl -X POST \
+  "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/setWebhook" \
+  -d url="https://your-project.vercel.app/api/telegram" \
+  -d secret_token="$TELEGRAM_WEBHOOK_SECRET"
+```
+
+6) Проверьте здоровье эндпоинта:
+```
+https://your-project.vercel.app/api/health
+```
+Статус должен быть `{ "status": "ok" }`.
+
 ## Логика результатов (кратко)
 - Комфорт / просторная гостиная / современный стиль → **CLOUD**
 - Минимализм / квартира-студия / функциональность → **GOCCI**
@@ -38,6 +67,8 @@ python bot.py
 - `bot.py` — основной код бота (вопросы, логика, задержки, контакт).
 - `requirements.txt` — зависимости.
 - `.env.example` — пример конфигурации окружения.
+- `api/telegram.py` — FastAPI webhook для Vercel.
+- `vercel.json` — конфигурация функций и роутинга для Vercel.
 
 ## Заметки по эксплуатации
 - Бот использует long polling. Для продакшена можно перевести на webhooks.
