@@ -16,8 +16,8 @@ BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 WEBHOOK_SECRET = os.getenv("TELEGRAM_WEBHOOK_SECRET", "")
 ADMIN_SECRET = os.getenv("ADMIN_SECRET", "")
 
-# PTB application will be built lazily to avoid failing health when env is missing
-ptb_app = None
+# Pre-build PTB application; initialize on startup to avoid per-request cold init
+ptb_app = build_application()
 _initialized = False
 
 fastapi_app = FastAPI(title="FILS Design Telegram Webhook")
@@ -97,11 +97,17 @@ def admin_layout(*, title: str, active: str, body: str) -> HTMLResponse:
 
 @fastapi_app.on_event("startup")
 async def on_startup():
-    # Initialize DB; PTB will be initialized lazily on first webhook call
+    # Initialize DB
     try:
         init_db()
     except Exception:
         pass
+    # Initialize and start PTB app once per instance
+    global _initialized
+    if not _initialized:
+        await ptb_app.initialize()
+        await ptb_app.start()
+        _initialized = True
     return
 
 
@@ -137,19 +143,7 @@ async def telegram_webhook(request: Request, x_telegram_bot_api_secret_token: Op
 
     data = await request.json()
 
-    # Ensure PTB initialized (cold start safety)
-    global _initialized, ptb_app, BOT_TOKEN
-    if not _initialized:
-        if not BOT_TOKEN:
-            # Re-read in case env is present at runtime
-            BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
-        if not BOT_TOKEN:
-            raise HTTPException(status_code=500, detail="BOT token is not configured")
-        if ptb_app is None:
-            ptb_app = build_application()
-        await ptb_app.initialize()
-        await ptb_app.start()
-        _initialized = True
+    # PTB app is initialized at startup; proceed
 
     # Parse update and process (await) to avoid serverless task cancellation
     update = Update.de_json(data=data, bot=ptb_app.bot)
@@ -287,13 +281,10 @@ async def admin_stats(_: Any = Depends(require_admin)):
             by_model_html = ""
             error_html = f"<div style='color:#b00; margin:8px 0;'>DB error: {msg}</div>"
 
-@fastapi_app.get("/admin/migrate")
-async def admin_migrate(_: Any = Depends(require_admin)):
-    try:
-        init_db()
-        return PlainTextResponse("OK: schema ensured")
-    except Exception as e:
-        return PlainTextResponse(f"Error: {e}", status_code=500)
+    # Fallback text when no model data
+    if not by_model_html:
+        by_model_html = "<li class='muted'>Пока нет данных</li>"
+
     return admin_layout(
         title="Статистика",
         active="stats",
@@ -308,6 +299,14 @@ async def admin_migrate(_: Any = Depends(require_admin)):
             "</div>"
         ),
     )
+
+@fastapi_app.get("/admin/migrate")
+async def admin_migrate(_: Any = Depends(require_admin)):
+    try:
+        init_db()
+        return PlainTextResponse("OK: schema ensured")
+    except Exception as e:
+        return PlainTextResponse(f"Error: {e}", status_code=500)
 
 
 @fastapi_app.get("/admin/broadcasts", response_class=HTMLResponse)
