@@ -150,6 +150,14 @@ async def telegram_webhook(request: Request, x_telegram_bot_api_secret_token: Op
         await ptb_app.start()
         _initialized = True
 
+    # If it's a callback, ACK immediately to make Telegram UI responsive
+    try:
+        cq = data.get("callback_query")
+        if cq and cq.get("id"):
+            await ptb_app.bot.answer_callback_query(callback_query_id=cq["id"], text="", cache_time=0)
+    except Exception:
+        pass
+
     # Parse update and process (await) to avoid serverless task cancellation
     update = Update.de_json(data=data, bot=ptb_app.bot)
     await ptb_app.process_update(update)
