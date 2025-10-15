@@ -143,7 +143,12 @@ async def telegram_webhook(request: Request, x_telegram_bot_api_secret_token: Op
 
     data = await request.json()
 
-    # PTB app is initialized at startup; proceed
+    # Ensure PTB app is initialized (fallback if startup wasn't triggered)
+    global _initialized
+    if not _initialized:
+        await ptb_app.initialize()
+        await ptb_app.start()
+        _initialized = True
 
     # Parse update and process (await) to avoid serverless task cancellation
     update = Update.de_json(data=data, bot=ptb_app.bot)
