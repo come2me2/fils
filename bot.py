@@ -3,6 +3,7 @@ import os
 from typing import Dict, List
 
 from dotenv import load_dotenv
+from db import upsert_user, touch_user_active, add_submission, update_user_phone
 from telegram import (
     InlineKeyboardButton,
     InlineKeyboardMarkup,
@@ -73,6 +74,20 @@ def start_keyboard() -> InlineKeyboardMarkup:
 
 async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     context.user_data.clear()
+    # Store/refresh user in DB
+    u = update.effective_user
+    try:
+        upsert_user({
+            "telegram_id": u.id,
+            "username": u.username,
+            "first_name": u.first_name,
+            "last_name": u.last_name,
+            "language_code": getattr(u, "language_code", None),
+            "is_bot": u.is_bot,
+        })
+        touch_user_active(u.id)
+    except Exception:
+        pass
     greet = (
         "Привет 👋\n"
         "Это квиз от **FILS Design**.\n"
@@ -232,6 +247,13 @@ async def handle_q4(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     model_key = compute_recommendation(context.user_data.get(UD_ANSWERS, []))
     context.user_data[UD_RESULT] = model_key
+    # Save submission
+    try:
+        user_id = update.effective_user.id
+        add_submission(user_id, model_key, context.user_data.get(UD_ANSWERS, []))
+        touch_user_active(user_id)
+    except Exception:
+        pass
 
     await send_result_and_contact(update, context, model_key)
 
@@ -357,6 +379,12 @@ async def on_contact(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
     # Forward summary to manager
     await forward_to_manager(context, user_full_name=user.full_name, username=user.username, user_id=user.id,
                              phone=contact.phone_number, name=f"{contact.first_name} {contact.last_name or ''}")
+    # Save phone to DB
+    try:
+        update_user_phone(user.id, contact.phone_number)
+        touch_user_active(user.id)
+    except Exception:
+        pass
 
 
 async def on_phone_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
