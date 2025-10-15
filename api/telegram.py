@@ -158,12 +158,26 @@ async def admin_home(_: Any = Depends(require_admin)):
 
 @fastapi_app.get("/admin/users", response_class=HTMLResponse)
 async def admin_users(_: Any = Depends(require_admin)):
+    # Ensure schema
+    try:
+        init_db()
+    except Exception:
+        pass
     error_html = ""
     try:
         users = list_users(limit=500)
     except Exception as e:
-        users = []
-        error_html = f"<div style='color:#b00; margin:8px 0;'>DB error: {str(e)}</div>"
+        # If tables are missing, try to initialize and retry once
+        msg = str(e)
+        try:
+            if "relation \"users\" does not exist" in msg.lower():
+                init_db()
+                users = list_users(limit=500)
+            else:
+                raise
+        except Exception:
+            users = []
+            error_html = f"<div style='color:#b00; margin:8px 0;'>DB error: {msg}</div>"
     rows = "".join(
         f"<tr><td>{u.get('telegram_id')}</td><td>@{u.get('username') or ''}</td><td>{u.get('first_name') or ''} {u.get('last_name') or ''}</td><td>{u.get('phone') or ''}</td><td>{u.get('created_at')}</td><td>{u.get('last_active_at') or ''}</td></tr>"
         for u in users
@@ -195,14 +209,37 @@ async def admin_users(_: Any = Depends(require_admin)):
 
 @fastapi_app.get("/admin/stats", response_class=HTMLResponse)
 async def admin_stats(_: Any = Depends(require_admin)):
+    # Ensure schema
+    try:
+        init_db()
+    except Exception:
+        pass
     try:
         s = stats_summary()
         by_model_html = "".join(f"<li>{k}: {v}</li>" for k, v in s.get("by_model", {}).items())
         error_html = ""
     except Exception as e:
-        s = {"users": 0, "submissions": 0, "by_model": {}}
-        by_model_html = ""
-        error_html = f"<div style='color:#b00; margin:8px 0;'>DB error: {str(e)}</div>"
+        msg = str(e)
+        try:
+            if "relation \"users\" does not exist" in msg.lower() or "relation \"submissions\" does not exist" in msg.lower():
+                init_db()
+                s = stats_summary()
+                by_model_html = "".join(f"<li>{k}: {v}</li>" for k, v in s.get("by_model", {}).items())
+                error_html = ""
+            else:
+                raise
+        except Exception:
+            s = {"users": 0, "submissions": 0, "by_model": {}}
+            by_model_html = ""
+            error_html = f"<div style='color:#b00; margin:8px 0;'>DB error: {msg}</div>"
+
+@fastapi_app.get("/admin/migrate")
+async def admin_migrate(_: Any = Depends(require_admin)):
+    try:
+        init_db()
+        return PlainTextResponse("OK: schema ensured")
+    except Exception as e:
+        return PlainTextResponse(f"Error: {e}", status_code=500)
     html = f"""
     <html><head><title>Статистика — FILS Admin</title></head>
     <body style=\"font-family: system-ui; max-width: 1000px; margin: 24px auto; display:flex; gap:24px;\">\n
