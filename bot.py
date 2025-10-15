@@ -154,7 +154,18 @@ def q4_payload():
 
 async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     context.user_data.clear()
-    # Store/refresh user in DB
+    greet = (
+        "Привет 👋\n"
+        "Это квиз от **FILS Design**.\n"
+        "За 1 минуту подберём диван, который идеально впишется в твой интерьер и стиль жизни.\n"
+        "Готов начать?"
+    )
+    await update.effective_chat.send_message(
+        greet,
+        reply_markup=start_keyboard(),
+        parse_mode=ParseMode.MARKDOWN,
+    )
+    # Store/refresh user in DB (after sending greeting to reduce latency)
     u = update.effective_user
     try:
         upsert_user({
@@ -168,17 +179,6 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         touch_user_active(u.id)
     except Exception:
         pass
-    greet = (
-        "Привет 👋\n"
-        "Это квиз от **FILS Design**.\n"
-        "За 1 минуту подберём диван, который идеально впишется в твой интерьер и стиль жизни.\n"
-        "Готов начать?"
-    )
-    await update.effective_chat.send_message(
-        greet,
-        reply_markup=start_keyboard(),
-        parse_mode=ParseMode.MARKDOWN,
-    )
 
 
 async def on_start_quiz(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
