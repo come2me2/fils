@@ -27,7 +27,7 @@ from telegram.ext import (
 load_dotenv()
 BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 MANAGER_CHAT_ID = os.getenv("MANAGER_CHAT_ID", "")
-MESSAGE_DELAY_SECONDS = float(os.getenv("MESSAGE_DELAY_SECONDS", "1.7"))
+MESSAGE_DELAY_SECONDS = float(os.getenv("MESSAGE_DELAY_SECONDS", "1.0"))
 
 # URLs
 URL_CLOUD = "https://filsdesign.ru/sofas/cloud"
