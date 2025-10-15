@@ -106,6 +106,11 @@ async def on_start_quiz(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     query = update.callback_query
     await query.answer(text="Запускаем квиз…")
     context.user_data[UD_ANSWERS] = []
+    # Immediately disable buttons to avoid double taps
+    try:
+        await query.edit_message_reply_markup(reply_markup=None)
+    except Exception:
+        pass
     # Remove the greeting message with the start button
     try:
         await query.message.delete()
@@ -139,6 +144,11 @@ async def handle_q1(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await query.answer(text="Выбрано ✅")
     choice = int(query.data.split("_")[1])
     context.user_data.setdefault(UD_ANSWERS, []).append(("Q1", choice))
+    # Immediately disable buttons to avoid double taps
+    try:
+        await query.edit_message_reply_markup(reply_markup=None)
+    except Exception:
+        pass
     # Delete current question message
     try:
         await query.message.delete()
@@ -171,6 +181,11 @@ async def handle_q2(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await query.answer(text="Выбрано ✅")
     choice = int(query.data.split("_")[1])
     context.user_data.setdefault(UD_ANSWERS, []).append(("Q2", choice))
+    # Immediately disable buttons to avoid double taps
+    try:
+        await query.edit_message_reply_markup(reply_markup=None)
+    except Exception:
+        pass
     # Delete current question message
     try:
         await query.message.delete()
@@ -203,6 +218,11 @@ async def handle_q3(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await query.answer(text="Выбрано ✅")
     choice = int(query.data.split("_")[1])
     context.user_data.setdefault(UD_ANSWERS, []).append(("Q3", choice))
+    # Immediately disable buttons to avoid double taps
+    try:
+        await query.edit_message_reply_markup(reply_markup=None)
+    except Exception:
+        pass
     # Delete current question message
     try:
         await query.message.delete()
@@ -235,6 +255,11 @@ async def handle_q4(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await query.answer(text="Выбрано ✅")
     choice = int(query.data.split("_")[1])
     context.user_data.setdefault(UD_ANSWERS, []).append(("Q4", choice))
+    # Immediately disable buttons to avoid double taps
+    try:
+        await query.edit_message_reply_markup(reply_markup=None)
+    except Exception:
+        pass
     # Delete current question message
     try:
         await query.message.delete()
