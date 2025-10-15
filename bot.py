@@ -12,7 +12,7 @@ from telegram import (
     ReplyKeyboardRemove,
     Update,
 )
-from telegram.constants import ParseMode, ChatAction
+from telegram.constants import ParseMode
 from telegram.ext import (
     Application,
     ApplicationBuilder,
@@ -27,7 +27,9 @@ from telegram.ext import (
 load_dotenv()
 BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 MANAGER_CHAT_ID = os.getenv("MANAGER_CHAT_ID", "")
-MESSAGE_DELAY_SECONDS = float(os.getenv("MESSAGE_DELAY_SECONDS", "1.0"))
+# Fine-grained delays
+QUESTION_DELAY_SECONDS = float(os.getenv("QUESTION_DELAY_SECONDS", os.getenv("MESSAGE_DELAY_SECONDS", "0.0")))
+RESULT_DELAY_SECONDS = float(os.getenv("RESULT_DELAY_SECONDS", os.getenv("MESSAGE_DELAY_SECONDS", "0.2")))
 
 # URLs
 URL_CLOUD = "https://filsdesign.ru/sofas/cloud"
@@ -66,10 +68,88 @@ MODELS = {
 }
 
 
+async def _ack_and_cleanup(query) -> None:
+    """Best-effort: acknowledge tap by editing message text and removing keyboard.
+    If editing text fails, try removing just the keyboard. If that fails, try deleting.
+    """
+    # Try edit text + remove keyboard
+    try:
+        await query.edit_message_text("Принято ✅")
+        return
+    except Exception:
+        pass
+    # Try only remove keyboard
+    try:
+        await query.edit_message_reply_markup(reply_markup=None)
+        return
+    except Exception:
+        pass
+    # Fallback: delete message
+    try:
+        await query.message.delete()
+    except Exception:
+        pass
+
 def start_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         [[InlineKeyboardButton(text="👉 Начать подбор", callback_data="start_quiz")]]
     )
+
+
+def q1_payload():
+    text = (
+        "🧩 Вопрос 1:\n"
+        "Где будет стоять диван?"
+    )
+    kb = InlineKeyboardMarkup([
+        [InlineKeyboardButton("1️⃣ Просторная гостиная", callback_data="q1_1")],
+        [InlineKeyboardButton("2️⃣ Студия", callback_data="q1_2")],
+        [InlineKeyboardButton("3️⃣ Офис / кабинет", callback_data="q1_3")],
+        [InlineKeyboardButton("4️⃣ Загородный дом", callback_data="q1_4")],
+    ])
+    return text, kb
+
+
+def q2_payload():
+    text = (
+        "🧩 Вопрос 2:\n"
+        "Что для тебя важнее всего?"
+    )
+    kb = InlineKeyboardMarkup([
+        [InlineKeyboardButton("1️⃣ Максимальный комфорт", callback_data="q2_1")],
+        [InlineKeyboardButton("2️⃣ Минимализм, чёткие линии", callback_data="q2_2")],
+        [InlineKeyboardButton("3️⃣ Вау‑дизайн", callback_data="q2_3")],
+        [InlineKeyboardButton("4️⃣ Модульность, простор", callback_data="q2_4")],
+    ])
+    return text, kb
+
+
+def q3_payload():
+    text = (
+        "🧩 Вопрос 3:\n"
+        "Какой стиль тебе ближе?"
+    )
+    kb = InlineKeyboardMarkup([
+        [InlineKeyboardButton("1️⃣ Современный минимализм", callback_data="q3_1")],
+        [InlineKeyboardButton("2️⃣ Лофт / урбан", callback_data="q3_2")],
+        [InlineKeyboardButton("3️⃣ Современная классика", callback_data="q3_3")],
+        [InlineKeyboardButton("4️⃣ Дорого и спокойно", callback_data="q3_4")],
+    ])
+    return text, kb
+
+
+def q4_payload():
+    text = (
+        "🧩 Вопрос 4:\n"
+        "Что ты ожидаешь от дивана?"
+    )
+    kb = InlineKeyboardMarkup([
+        [InlineKeyboardButton("1️⃣ Мягкий и уютный ☁️", callback_data="q4_1")],
+        [InlineKeyboardButton("2️⃣ Строго и стильно", callback_data="q4_2")],
+        [InlineKeyboardButton("3️⃣ Трансформируемый", callback_data="q4_3")],
+        [InlineKeyboardButton("4️⃣ Акцент в комнате", callback_data="q4_4")],
+    ])
+    return text, kb
 
 
 async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -106,36 +186,19 @@ async def on_start_quiz(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     query = update.callback_query
     await query.answer(text="Запускаем квиз…")
     context.user_data[UD_ANSWERS] = []
-    # Immediately disable buttons to avoid double taps
+    # Edit greeting message into Q1 to ensure single-tap UX
+    text, kb = q1_payload()
     try:
-        await query.edit_message_reply_markup(reply_markup=None)
+        await query.edit_message_text(text=text, reply_markup=kb)
     except Exception:
-        pass
-    # Remove the greeting message with the start button
-    try:
-        await query.message.delete()
-    except Exception:
-        pass
-    # Show typing while preparing next message
-    try:
-        await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
-    except Exception:
-        pass
-    await send_q1(update, context)
+        # Fallback to sending new message
+        await update.effective_chat.send_message(text, reply_markup=kb)
 
 
 async def send_q1(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await asyncio.sleep(MESSAGE_DELAY_SECONDS)
-    text = (
-        "🧩 Вопрос 1:\n"
-        "Где будет стоять диван?"
-    )
-    kb = InlineKeyboardMarkup([
-        [InlineKeyboardButton("1️⃣ Просторная гостиная", callback_data="q1_1")],
-        [InlineKeyboardButton("2️⃣ Студия", callback_data="q1_2")],
-        [InlineKeyboardButton("3️⃣ Офис / кабинет", callback_data="q1_3")],
-        [InlineKeyboardButton("4️⃣ Загородный дом", callback_data="q1_4")],
-    ])
+    if QUESTION_DELAY_SECONDS > 0:
+        await asyncio.sleep(QUESTION_DELAY_SECONDS)
+    text, kb = q1_payload()
     await update.effective_chat.send_message(text, reply_markup=kb)
 
 
@@ -144,35 +207,18 @@ async def handle_q1(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await query.answer(text="Выбрано ✅")
     choice = int(query.data.split("_")[1])
     context.user_data.setdefault(UD_ANSWERS, []).append(("Q1", choice))
-    # Immediately disable buttons to avoid double taps
+    # Edit to next question in-place
+    text, kb = q2_payload()
     try:
-        await query.edit_message_reply_markup(reply_markup=None)
+        await query.edit_message_text(text=text, reply_markup=kb)
     except Exception:
-        pass
-    # Delete current question message
-    try:
-        await query.message.delete()
-    except Exception:
-        pass
-    try:
-        await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
-    except Exception:
-        pass
-    await send_q2(update, context)
+        await update.effective_chat.send_message(text, reply_markup=kb)
 
 
 async def send_q2(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await asyncio.sleep(MESSAGE_DELAY_SECONDS)
-    text = (
-        "🧩 Вопрос 2:\n"
-        "Что для тебя важнее всего?"
-    )
-    kb = InlineKeyboardMarkup([
-        [InlineKeyboardButton("1️⃣ Максимальный комфорт", callback_data="q2_1")],
-        [InlineKeyboardButton("2️⃣ Минимализм, чёткие линии", callback_data="q2_2")],
-        [InlineKeyboardButton("3️⃣ Вау‑дизайн", callback_data="q2_3")],
-        [InlineKeyboardButton("4️⃣ Модульность, простор", callback_data="q2_4")],
-    ])
+    if QUESTION_DELAY_SECONDS > 0:
+        await asyncio.sleep(QUESTION_DELAY_SECONDS)
+    text, kb = q2_payload()
     await update.effective_chat.send_message(text, reply_markup=kb)
 
 
@@ -181,35 +227,18 @@ async def handle_q2(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await query.answer(text="Выбрано ✅")
     choice = int(query.data.split("_")[1])
     context.user_data.setdefault(UD_ANSWERS, []).append(("Q2", choice))
-    # Immediately disable buttons to avoid double taps
+    # Edit to next question in-place
+    text, kb = q3_payload()
     try:
-        await query.edit_message_reply_markup(reply_markup=None)
+        await query.edit_message_text(text=text, reply_markup=kb)
     except Exception:
-        pass
-    # Delete current question message
-    try:
-        await query.message.delete()
-    except Exception:
-        pass
-    try:
-        await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
-    except Exception:
-        pass
-    await send_q3(update, context)
+        await update.effective_chat.send_message(text, reply_markup=kb)
 
 
 async def send_q3(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await asyncio.sleep(MESSAGE_DELAY_SECONDS)
-    text = (
-        "🧩 Вопрос 3:\n"
-        "Какой стиль тебе ближе?"
-    )
-    kb = InlineKeyboardMarkup([
-        [InlineKeyboardButton("1️⃣ Современный минимализм", callback_data="q3_1")],
-        [InlineKeyboardButton("2️⃣ Лофт / урбан", callback_data="q3_2")],
-        [InlineKeyboardButton("3️⃣ Современная классика", callback_data="q3_3")],
-        [InlineKeyboardButton("4️⃣ Дорого и спокойно", callback_data="q3_4")],
-    ])
+    if QUESTION_DELAY_SECONDS > 0:
+        await asyncio.sleep(QUESTION_DELAY_SECONDS)
+    text, kb = q3_payload()
     await update.effective_chat.send_message(text, reply_markup=kb)
 
 
@@ -218,35 +247,18 @@ async def handle_q3(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await query.answer(text="Выбрано ✅")
     choice = int(query.data.split("_")[1])
     context.user_data.setdefault(UD_ANSWERS, []).append(("Q3", choice))
-    # Immediately disable buttons to avoid double taps
+    # Edit to next question in-place
+    text, kb = q4_payload()
     try:
-        await query.edit_message_reply_markup(reply_markup=None)
+        await query.edit_message_text(text=text, reply_markup=kb)
     except Exception:
-        pass
-    # Delete current question message
-    try:
-        await query.message.delete()
-    except Exception:
-        pass
-    try:
-        await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
-    except Exception:
-        pass
-    await send_q4(update, context)
+        await update.effective_chat.send_message(text, reply_markup=kb)
 
 
 async def send_q4(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await asyncio.sleep(MESSAGE_DELAY_SECONDS)
-    text = (
-        "🧩 Вопрос 4:\n"
-        "Что ты ожидаешь от дивана?"
-    )
-    kb = InlineKeyboardMarkup([
-        [InlineKeyboardButton("1️⃣ Мягкий и уютный ☁️", callback_data="q4_1")],
-        [InlineKeyboardButton("2️⃣ Строго и стильно", callback_data="q4_2")],
-        [InlineKeyboardButton("3️⃣ Трансформируемый", callback_data="q4_3")],
-        [InlineKeyboardButton("4️⃣ Акцент в комнате", callback_data="q4_4")],
-    ])
+    if QUESTION_DELAY_SECONDS > 0:
+        await asyncio.sleep(QUESTION_DELAY_SECONDS)
+    text, kb = q4_payload()
     await update.effective_chat.send_message(text, reply_markup=kb)
 
 
@@ -255,18 +267,9 @@ async def handle_q4(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await query.answer(text="Выбрано ✅")
     choice = int(query.data.split("_")[1])
     context.user_data.setdefault(UD_ANSWERS, []).append(("Q4", choice))
-    # Immediately disable buttons to avoid double taps
+    # Acknowledge selection in-place
     try:
-        await query.edit_message_reply_markup(reply_markup=None)
-    except Exception:
-        pass
-    # Delete current question message
-    try:
-        await query.message.delete()
-    except Exception:
-        pass
-    try:
-        await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
+        await query.edit_message_text(text="Принято ✅")
     except Exception:
         pass
 
@@ -351,7 +354,8 @@ def compute_recommendation(answers: List) -> str:
 
 
 async def send_result_and_contact(update: Update, context: ContextTypes.DEFAULT_TYPE, model_key: str) -> None:
-    await asyncio.sleep(MESSAGE_DELAY_SECONDS)
+    if RESULT_DELAY_SECONDS > 0:
+        await asyncio.sleep(RESULT_DELAY_SECONDS)
 
     model = MODELS[model_key]
     text = (
