@@ -46,7 +46,16 @@ async def on_shutdown():
 
 @fastapi_app.get("/api/health")
 async def health():
-    return {"status": "ok", "bot_initialized": _initialized}
+    # Try DB connectivity
+    db_ok = True
+    db_err = None
+    try:
+        # light-touch: stats_summary() runs SELECTs
+        _ = stats_summary()
+    except Exception as e:
+        db_ok = False
+        db_err = str(e)
+    return {"status": "ok", "bot_initialized": _initialized, "db_ok": db_ok, "db_error": db_err}
 
 
 @fastapi_app.post("/api/telegram")
@@ -149,7 +158,12 @@ async def admin_home(_: Any = Depends(require_admin)):
 
 @fastapi_app.get("/admin/users", response_class=HTMLResponse)
 async def admin_users(_: Any = Depends(require_admin)):
-    users = list_users(limit=500)
+    error_html = ""
+    try:
+        users = list_users(limit=500)
+    except Exception as e:
+        users = []
+        error_html = f"<div style='color:#b00; margin:8px 0;'>DB error: {str(e)}</div>"
     rows = "".join(
         f"<tr><td>{u.get('telegram_id')}</td><td>@{u.get('username') or ''}</td><td>{u.get('first_name') or ''} {u.get('last_name') or ''}</td><td>{u.get('phone') or ''}</td><td>{u.get('created_at')}</td><td>{u.get('last_active_at') or ''}</td></tr>"
         for u in users
@@ -168,6 +182,7 @@ async def admin_users(_: Any = Depends(require_admin)):
       </aside>\n
       <main style=\"flex:1;\">\n
         <h2>Пользователи</h2>\n
+        {error_html}\n
         <table border=1 cellpadding=6 cellspacing=0>\n
           <tr><th>ID</th><th>Username</th><th>Имя</th><th>Телефон</th><th>Создан</th><th>Активность</th></tr>\n
           {rows}\n
@@ -180,8 +195,14 @@ async def admin_users(_: Any = Depends(require_admin)):
 
 @fastapi_app.get("/admin/stats", response_class=HTMLResponse)
 async def admin_stats(_: Any = Depends(require_admin)):
-    s = stats_summary()
-    by_model_html = "".join(f"<li>{k}: {v}</li>" for k, v in s.get("by_model", {}).items())
+    try:
+        s = stats_summary()
+        by_model_html = "".join(f"<li>{k}: {v}</li>" for k, v in s.get("by_model", {}).items())
+        error_html = ""
+    except Exception as e:
+        s = {"users": 0, "submissions": 0, "by_model": {}}
+        by_model_html = ""
+        error_html = f"<div style='color:#b00; margin:8px 0;'>DB error: {str(e)}</div>"
     html = f"""
     <html><head><title>Статистика — FILS Admin</title></head>
     <body style=\"font-family: system-ui; max-width: 1000px; margin: 24px auto; display:flex; gap:24px;\">\n
@@ -196,6 +217,7 @@ async def admin_stats(_: Any = Depends(require_admin)):
       </aside>\n
       <main style=\"flex:1;\">\n
         <h2>Статистика</h2>\n
+        {error_html}\n
         <p>Пользователи: <b>{s.get('users', 0)}</b></p>\n
         <p>Квизов пройдено: <b>{s.get('submissions', 0)}</b></p>\n
         <h3>По моделям</h3>\n
