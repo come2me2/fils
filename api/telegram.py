@@ -25,6 +25,76 @@ fastapi_app = FastAPI(title="FILS Design Telegram Webhook")
 app = fastapi_app
 
 
+def admin_layout(*, title: str, active: str, body: str) -> HTMLResponse:
+    # active in {"users","stats","broadcasts","home"}
+    def a(href: str, text: str, key: str) -> str:
+        on = " class=\"active\"" if key == active else ""
+        return f"<a href=\"{href}\"{on}>{text}</a>"
+
+    html = f"""
+    <!doctype html>
+    <html lang="ru">
+    <head>
+      <meta charset="utf-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1" />
+      <title>{title} — FILS Admin</title>
+      <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+      <style>
+        :root {{
+          --bg: #0f1113;
+          --panel: #15181b;
+          --muted: #7c8a99;
+          --text: #e7edf2;
+          --brand: #a4b1bc; /* спокойный серо-голубой */
+          --accent: #c9d4dc; /* светлый для границ */
+          --ok: #3ecf8e;
+          --danger: #ff5a5f;
+        }}
+        * {{ box-sizing: border-box; }}
+        body {{ margin: 0; background: var(--bg); color: var(--text); font-family: 'Roboto', system-ui, -apple-system, Segoe UI, Arial, sans-serif; }}
+        .wrap {{ display: grid; grid-template-columns: 240px 1fr; min-height: 100vh; }}
+        aside {{ background: var(--panel); border-right: 1px solid #1d2226; padding: 24px 16px; position: sticky; top: 0; height: 100vh; }}
+        .brand {{ font-weight: 700; letter-spacing: .5px; color: var(--brand); margin: 0 0 16px; }}
+        nav a {{ display: block; padding: 10px 12px; color: var(--text); text-decoration: none; border-radius: 8px; margin-bottom: 6px; border: 1px solid transparent; }}
+        nav a:hover {{ background: #1a1f24; border-color: #20262b; }}
+        nav a.active {{ background: #1b2026; border-color: var(--accent); color: #fff; }}
+        .content {{ padding: 28px 28px 48px; }}
+        h1, h2 {{ margin: 0 0 14px; font-weight: 600; }}
+        .panel {{ background: var(--panel); border: 1px solid #1d2226; border-radius: 12px; padding: 18px; }}
+        .muted {{ color: var(--muted); }}
+        .error {{ color: var(--danger); margin: 8px 0 16px; }}
+        table {{ width: 100%; border-collapse: collapse; }}
+        th, td {{ text-align: left; padding: 10px 12px; border-bottom: 1px solid #22272b; }}
+        th {{ color: var(--muted); font-weight: 500; letter-spacing: .3px; }}
+        tr:hover td {{ background: #171b1f; }}
+        .btn {{ display: inline-block; padding: 10px 14px; border-radius: 10px; border: 1px solid #2a3137; background: #1a1f24; color: #e7edf2; text-decoration: none; cursor: pointer; }}
+        .btn:hover {{ background: #20262b; }}
+        textarea, input[type="password"] {{ width: 100%; background: #0f1317; color: #e7edf2; border: 1px solid #20262b; border-radius: 10px; padding: 10px 12px; }}
+        form .row {{ display: flex; gap: 12px; }}
+      </style>
+    </head>
+    <body>
+      <div class="wrap">
+        <aside>
+          <h3 class="brand">FILS Admin</h3>
+          <nav>
+            {a('/admin', 'Главная', 'home')}
+            {a('/admin/users', 'Пользователи', 'users')}
+            {a('/admin/stats', 'Статистика', 'stats')}
+            {a('/admin/broadcasts', 'Рассылки', 'broadcasts')}
+            <a href="/admin/logout" class="muted">Выйти</a>
+          </nav>
+        </aside>
+        <main class="content">
+          {body}
+        </main>
+      </div>
+    </body>
+    </html>
+    """
+    return HTMLResponse(html)
+
+
 @fastapi_app.on_event("startup")
 async def on_startup():
     # Initialize DB; PTB will be initialized lazily on first webhook call
@@ -102,17 +172,19 @@ async def require_admin(request: Request):
 
 @fastapi_app.get("/admin/login", response_class=HTMLResponse)
 async def admin_login_page():
-    html = """
-    <html><head><title>FILS Admin — Login</title></head>
-    <body style="font-family: system-ui; max-width: 640px; margin: 40px auto;">
-      <h2>Вход в админку</h2>
-      <form method="post" action="/admin/login" style="display:flex; gap:8px;">
-        <input type="password" name="secret" placeholder="ADMIN_SECRET" style="flex:1; padding:8px;" />
-        <button type="submit" style="padding:8px 16px;">Войти</button>
-      </form>
-    </body></html>
-    """
-    return HTMLResponse(html)
+    return admin_layout(
+        title="Вход",
+        active="home",
+        body=(
+            "<h2>Вход в админку</h2>"
+            '<div class="panel">'
+            '<form method="post" action="/admin/login" class="row">'
+            '<input type="password" name="secret" placeholder="ADMIN_SECRET" />'
+            '<button class="btn" type="submit">Войти</button>'
+            "</form>"
+            "</div>"
+        ),
+    )
 
 
 @fastapi_app.post("/admin/login")
@@ -135,25 +207,14 @@ async def admin_logout():
 
 @fastapi_app.get("/admin", response_class=HTMLResponse)
 async def admin_home(_: Any = Depends(require_admin)):
-    html = """
-    <html><head><title>FILS Admin</title></head>
-    <body style=\"font-family: system-ui; max-width: 1000px; margin: 24px auto; display:flex; gap:24px;\">\n
-      <aside style=\"min-width:220px;\">\n
-        <h3>Меню</h3>\n
-        <ul style=\"list-style:none; padding-left:0; line-height: 1.9;\">\n
-          <li><a href=\"/admin/users\">Пользователи</a></li>\n
-          <li><a href=\"/admin/stats\">Статистика</a></li>\n
-          <li><a href=\"/admin/broadcasts\">Рассылки</a></li>\n
-          <li><a href=\"/admin/logout\">Выйти</a></li>\n
-        </ul>\n
-      </aside>\n
-      <main style=\"flex:1;\">\n
-        <h2>FILS Admin</h2>\n
-        <p>Выберите раздел слева.</p>\n
-      </main>\n
-    </body></html>
-    """
-    return HTMLResponse(html)
+    return admin_layout(
+        title="Главная",
+        active="home",
+        body=(
+            "<h2>FILS Admin</h2>"
+            '<div class="panel"><p class="muted">Выберите раздел слева.</p></div>'
+        ),
+    )
 
 
 @fastapi_app.get("/admin/users", response_class=HTMLResponse)
@@ -179,32 +240,25 @@ async def admin_users(_: Any = Depends(require_admin)):
             users = []
             error_html = f"<div style='color:#b00; margin:8px 0;'>DB error: {msg}</div>"
     rows = "".join(
-        f"<tr><td>{u.get('telegram_id')}</td><td>@{u.get('username') or ''}</td><td>{u.get('first_name') or ''} {u.get('last_name') or ''}</td><td>{u.get('phone') or ''}</td><td>{u.get('created_at')}</td><td>{u.get('last_active_at') or ''}</td></tr>"
+        f"<tr><td>{u.get('telegram_id')}</td><td>@{u.get('username') or ''}</td><td>{u.get('first_name') or ''} {u.get('last_name') or ''}</td><td>{u.get('phone') or ''}</td><td>{u.get('last_model') or '-'}</td><td>{u.get('created_at')}</td><td>{u.get('last_active_at') or ''}</td></tr>"
         for u in users
     )
-    html = f"""
-    <html><head><title>Пользователи — FILS Admin</title></head>
-    <body style=\"font-family: system-ui; max-width: 1200px; margin: 24px auto; display:flex; gap:24px;\">\n
-      <aside style=\"min-width:220px;\">\n
-        <h3>Меню</h3>\n
-        <ul style=\"list-style:none; padding-left:0; line-height: 1.9;\">\n
-          <li><a href=\"/admin/users\"><b>Пользователи</b></a></li>\n
-          <li><a href=\"/admin/stats\">Статистика</a></li>\n
-          <li><a href=\"/admin/broadcasts\">Рассылки</a></li>\n
-          <li><a href=\"/admin/logout\">Выйти</a></li>\n
-        </ul>\n
-      </aside>\n
-      <main style=\"flex:1;\">\n
-        <h2>Пользователи</h2>\n
-        {error_html}\n
-        <table border=1 cellpadding=6 cellspacing=0>\n
-          <tr><th>ID</th><th>Username</th><th>Имя</th><th>Телефон</th><th>Создан</th><th>Активность</th></tr>\n
-          {rows}\n
-        </table>\n
-      </main>\n
-    </body></html>
-    """
-    return HTMLResponse(html)
+    return admin_layout(
+        title="Пользователи",
+        active="users",
+        body=(
+            "<h2>Пользователи</h2>"
+            f"{error_html}"
+            '<div class="panel">'
+            '<div style="overflow:auto">'
+            '<table>'
+            '<tr><th>ID</th><th>Username</th><th>Имя</th><th>Телефон</th><th>Результат</th><th>Создан</th><th>Активность</th></tr>'
+            f"{rows}"
+            '</table>'
+            '</div>'
+            '</div>'
+        ),
+    )
 
 
 @fastapi_app.get("/admin/stats", response_class=HTMLResponse)
@@ -240,55 +294,37 @@ async def admin_migrate(_: Any = Depends(require_admin)):
         return PlainTextResponse("OK: schema ensured")
     except Exception as e:
         return PlainTextResponse(f"Error: {e}", status_code=500)
-    html = f"""
-    <html><head><title>Статистика — FILS Admin</title></head>
-    <body style=\"font-family: system-ui; max-width: 1000px; margin: 24px auto; display:flex; gap:24px;\">\n
-      <aside style=\"min-width:220px;\">\n
-        <h3>Меню</h3>\n
-        <ul style=\"list-style:none; padding-left:0; line-height: 1.9;\">\n
-          <li><a href=\"/admin/users\">Пользователи</a></li>\n
-          <li><a href=\"/admin/stats\"><b>Статистика</b></a></li>\n
-          <li><a href=\"/admin/broadcasts\">Рассылки</a></li>\n
-          <li><a href=\"/admin/logout\">Выйти</a></li>\n
-        </ul>\n
-      </aside>\n
-      <main style=\"flex:1;\">\n
-        <h2>Статистика</h2>\n
-        {error_html}\n
-        <p>Пользователи: <b>{s.get('users', 0)}</b></p>\n
-        <p>Квизов пройдено: <b>{s.get('submissions', 0)}</b></p>\n
-        <h3>По моделям</h3>\n
-        <ul>{by_model_html}</ul>\n
-      </main>\n
-    </body></html>
-    """
-    return HTMLResponse(html)
+    return admin_layout(
+        title="Статистика",
+        active="stats",
+        body=(
+            "<h2>Статистика</h2>"
+            f"{error_html}"
+            '<div class="panel">'
+            f"<p>Пользователи: <b>{s.get('users', 0)}</b></p>"
+            f"<p>Квизов пройдено: <b>{s.get('submissions', 0)}</b></p>"
+            "<h3 class='muted' style='margin-top:12px;'>По моделям</h3>"
+            f"<ul>{by_model_html}</ul>"
+            "</div>"
+        ),
+    )
 
 
 @fastapi_app.get("/admin/broadcasts", response_class=HTMLResponse)
 async def admin_broadcasts_page(_: Any = Depends(require_admin)):
-    html = """
-    <html><head><title>Рассылки — FILS Admin</title></head>
-    <body style="font-family: system-ui; max-width: 1000px; margin: 24px auto; display:flex; gap:24px;">
-      <aside style="min-width:220px;">
-        <h3>Меню</h3>
-        <ul style="list-style:none; padding-left:0; line-height: 1.9;">
-          <li><a href="/admin/users">Пользователи</a></li>
-          <li><a href="/admin/stats">Статистика</a></li>
-          <li><a href="/admin/broadcasts"><b>Рассылки</b></a></li>
-          <li><a href="/admin/logout">Выйти</a></li>
-        </ul>
-      </aside>
-      <main style="flex:1;">
-        <h2>Рассылка</h2>
-        <form method="post" action="/admin/broadcasts" style="display:flex; flex-direction:column; gap:8px;">
-          <textarea name="text" rows="6" placeholder="Текст сообщения" style="padding:8px;"></textarea>
-          <button type="submit" style="width:200px; padding:8px 16px;">Отправить всем</button>
-        </form>
-      </main>
-    </body></html>
-    """
-    return HTMLResponse(html)
+    return admin_layout(
+        title="Рассылки",
+        active="broadcasts",
+        body=(
+            "<h2>Рассылка</h2>"
+            '<div class="panel">'
+            '<form method="post" action="/admin/broadcasts" style="display:flex; flex-direction:column; gap:12px;">'
+            '<textarea name="text" rows="6" placeholder="Текст сообщения"></textarea>'
+            '<div><button class="btn" type="submit">Отправить всем</button></div>'
+            "</form>"
+            "</div>"
+        ),
+    )
 
 
 @fastapi_app.post("/admin/broadcasts")

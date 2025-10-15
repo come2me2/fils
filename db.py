@@ -122,7 +122,29 @@ def list_users(limit: int = 200, offset: int = 0) -> List[Dict[str, Any]]:
         with _connect() as conn:
             with conn.cursor() as cur:
                 cur.execute(
-                    "SELECT telegram_id, username, first_name, last_name, phone, language_code, is_bot, created_at, updated_at, last_active_at FROM users ORDER BY created_at DESC LIMIT %s OFFSET %s",
+                    """
+                    SELECT
+                      u.telegram_id,
+                      u.username,
+                      u.first_name,
+                      u.last_name,
+                      u.phone,
+                      u.language_code,
+                      u.is_bot,
+                      u.created_at,
+                      u.updated_at,
+                      u.last_active_at,
+                      (
+                        SELECT s.model
+                        FROM submissions s
+                        WHERE s.telegram_id = u.telegram_id
+                        ORDER BY s.created_at DESC
+                        LIMIT 1
+                      ) AS last_model
+                    FROM users u
+                    ORDER BY u.created_at DESC
+                    LIMIT %s OFFSET %s
+                    """,
                     (limit, offset),
                 )
                 cols = [d[0] for d in cur.description]
