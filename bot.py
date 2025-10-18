@@ -385,18 +385,14 @@ async def send_promo_code(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     await asyncio.sleep(MESSAGE_DELAY_SECONDS)
     
     try:
-        promo_code = "FILS1978"
+        # Send simple test message first
+        await update.effective_chat.send_message("🔍 DEBUG: About to send simple promo message...")
         
-        promo_text = (
-            "🎉 Поздравляем!\n\n"
-            f"За прохождение квиза ты получаешь промокод на 5000₽!\n\n"
-            f"Промокод: {promo_code}\n\n"
-            "💡 Промокод действует 1 месяц и может быть использован при покупке любого дивана FILS Design."
-        )
-        await update.effective_chat.send_message(promo_text)
+        # Send very simple promo message
+        await update.effective_chat.send_message("🎉 Поздравляем! Ваш промокод: FILS1978")
         
         try:
-            await update.effective_chat.send_message("🔍 DEBUG: Promo code sent successfully!")
+            await update.effective_chat.send_message("🔍 DEBUG: Simple promo code sent successfully!")
         except Exception:
             pass
             
@@ -416,16 +412,10 @@ async def send_contact_request(update: Update, context: ContextTypes.DEFAULT_TYP
     await asyncio.sleep(MESSAGE_DELAY_SECONDS)
     
     try:
-        contact_text = (
-            "🎯 Хочешь получить персональную консультацию?\n\n"
-            "Наш дизайнер поможет:\n"
-            "• Подобрать идеальную ткань и цвет\n"
-            "• Рассчитать точные размеры\n"
-            "• Ответить на все вопросы о доставке\n"
-            "• Оформить заказ со скидкой\n\n"
-            "Оставь свой контакт, и мы свяжемся с тобой в течение часа! ⏰"
-        )
+        # Send simple test message first
+        await update.effective_chat.send_message("🔍 DEBUG: About to send simple contact request...")
         
+        # Send very simple contact request
         context.user_data[UD_AWAITING_CONTACT] = True
         context.user_data[UD_CONTACT_RECEIVED] = False
         contact_kb = ReplyKeyboardMarkup(
@@ -433,10 +423,10 @@ async def send_contact_request(update: Update, context: ContextTypes.DEFAULT_TYP
             resize_keyboard=True,
             one_time_keyboard=True,
         )
-        await update.effective_chat.send_message(contact_text, reply_markup=contact_kb)
+        await update.effective_chat.send_message("🎯 Оставьте контакт для консультации", reply_markup=contact_kb)
         
         try:
-            await update.effective_chat.send_message("🔍 DEBUG: Contact request sent successfully!")
+            await update.effective_chat.send_message("🔍 DEBUG: Simple contact request sent successfully!")
         except Exception:
             pass
             
