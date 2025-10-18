@@ -3,7 +3,7 @@ import os
 from typing import Dict, List
 
 from dotenv import load_dotenv
-from db import upsert_user, touch_user_active, add_submission, update_user_phone, generate_promo_code
+from db import upsert_user, touch_user_active, add_submission, update_user_phone
 from telegram import (
     InlineKeyboardButton,
     InlineKeyboardMarkup,
@@ -284,12 +284,6 @@ async def handle_q4(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     except Exception:
         pass
 
-    # Send a test message to confirm we reach this point
-    try:
-        await update.effective_chat.send_message("🔍 DEBUG: Q4 completed, calling send_result_and_contact...")
-    except Exception:
-        pass
-    
     await send_result_and_contact(update, context, model_key)
 
 
@@ -361,12 +355,6 @@ def compute_recommendation(answers: List) -> str:
 
 
 async def send_result_and_contact(update: Update, context: ContextTypes.DEFAULT_TYPE, model_key: str) -> None:
-    # Send a test message to confirm function is called
-    try:
-        await update.effective_chat.send_message("🔍 DEBUG: send_result_and_contact function started")
-    except Exception:
-        pass
-    
     # Send result message first
     if RESULT_DELAY_SECONDS > 0:
         await asyncio.sleep(RESULT_DELAY_SECONDS)
@@ -381,70 +369,23 @@ async def send_result_and_contact(update: Update, context: ContextTypes.DEFAULT_
         [[InlineKeyboardButton(text="🔍 Посмотреть все модели", url=URL_ALL)]]
     )
     await update.effective_chat.send_message(text, parse_mode=ParseMode.MARKDOWN, reply_markup=link_kb)
-    
-    # Test message after result
-    try:
-        await update.effective_chat.send_message("🔍 DEBUG: Result message sent, now sending promo code...")
-    except Exception:
-        pass
 
     await asyncio.sleep(MESSAGE_DELAY_SECONDS)
 
     # Send promo code message
-    try:
-        await update.effective_chat.send_message("🔍 DEBUG: About to generate promo code...")
-    except Exception:
-        pass
+    promo_code = "FILS1978"
     
-    try:
-        user_id = update.effective_user.id
-        await update.effective_chat.send_message(f"🔍 DEBUG: User ID: {user_id}")
-        
-        promo_code = generate_promo_code(user_id, 5000)
-        await update.effective_chat.send_message(f"🔍 DEBUG: Generated promo code: {promo_code}")
-        
-        promo_text = (
-            "🎉 **Поздравляем!**\n\n"
-            f"За прохождение квиза ты получаешь персональный промокод на **5000₽**!\n\n"
-            f"**Промокод:** `{promo_code}`\n\n"
-            "💡 *Промокод действует 1 год и может быть использован при покупке любого дивана FILS Design.*"
-        )
-        await update.effective_chat.send_message(promo_text, parse_mode=ParseMode.MARKDOWN)
-        
-        # Test message after promo code
-        try:
-            await update.effective_chat.send_message("🔍 DEBUG: Promo code sent successfully")
-        except Exception:
-            pass
-        
-    except Exception as e:
-        # Send error details
-        try:
-            await update.effective_chat.send_message(f"🔍 DEBUG: Promo code error: {str(e)}")
-        except Exception:
-            pass
-        
-        # Fallback promo message if database is not available
-        fallback_text = (
-            "🎉 **Поздравляем!**\n\n"
-            "За прохождение квиза ты получаешь персональный промокод на **5000₽**!\n\n"
-            "💡 *Свяжитесь с менеджером для получения промокода.*"
-        )
-        await update.effective_chat.send_message(fallback_text, parse_mode=ParseMode.MARKDOWN)
-        
-        # Test message after fallback
-        try:
-            await update.effective_chat.send_message("🔍 DEBUG: Fallback promo message sent")
-        except Exception:
-            pass
+    promo_text = (
+        "🎉 **Поздравляем!**\n\n"
+        f"За прохождение квиза ты получаешь промокод на **5000₽**!\n\n"
+        f"**Промокод:** `{promo_code}`\n\n"
+        "💡 *Промокод действует 1 год и может быть использован при покупке любого дивана FILS Design.*"
+    )
+    await update.effective_chat.send_message(promo_text, parse_mode=ParseMode.MARKDOWN)
 
     await asyncio.sleep(MESSAGE_DELAY_SECONDS)
 
     # Send contact request
-    try:
-        await update.effective_chat.send_message("🔍 DEBUG: Now sending contact request...")
-    except Exception:
-        pass
     contact_text = (
         "🎯 **Хочешь получить персональную консультацию?**\n\n"
         "Наш дизайнер поможет:\n"
@@ -463,12 +404,6 @@ async def send_result_and_contact(update: Update, context: ContextTypes.DEFAULT_
         one_time_keyboard=True,
     )
     await update.effective_chat.send_message(contact_text, reply_markup=contact_kb)
-    
-    # Final test message
-    try:
-        await update.effective_chat.send_message("🔍 DEBUG: Contact request sent, function completed!")
-    except Exception:
-        pass
 
 
 async def on_contact(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
