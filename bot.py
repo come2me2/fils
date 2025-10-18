@@ -370,6 +370,12 @@ async def send_result_and_contact(update: Update, context: ContextTypes.DEFAULT_
     )
     await update.effective_chat.send_message(text, parse_mode=ParseMode.MARKDOWN, reply_markup=link_kb)
 
+    # Test message to confirm we reach promo code section
+    try:
+        await update.effective_chat.send_message("🔍 DEBUG: About to send promo code...")
+    except Exception:
+        pass
+
     await asyncio.sleep(MESSAGE_DELAY_SECONDS)
 
     # Send promo code message
@@ -382,6 +388,12 @@ async def send_result_and_contact(update: Update, context: ContextTypes.DEFAULT_
         "💡 *Промокод действует 1 месяц и может быть использован при покупке любого дивана FILS Design.*"
     )
     await update.effective_chat.send_message(promo_text, parse_mode=ParseMode.MARKDOWN)
+    
+    # Test message after promo code
+    try:
+        await update.effective_chat.send_message("🔍 DEBUG: Promo code sent, now sending contact request...")
+    except Exception:
+        pass
 
     await asyncio.sleep(MESSAGE_DELAY_SECONDS)
 
@@ -404,6 +416,12 @@ async def send_result_and_contact(update: Update, context: ContextTypes.DEFAULT_
         one_time_keyboard=True,
     )
     await update.effective_chat.send_message(contact_text, reply_markup=contact_kb)
+    
+    # Final test message
+    try:
+        await update.effective_chat.send_message("🔍 DEBUG: Contact request sent, function completed!")
+    except Exception:
+        pass
 
 
 async def on_contact(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
