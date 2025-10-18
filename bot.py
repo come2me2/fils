@@ -28,6 +28,7 @@ load_dotenv()
 BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 MANAGER_CHAT_ID = os.getenv("MANAGER_CHAT_ID", "")
 # Fine-grained delays
+MESSAGE_DELAY_SECONDS = float(os.getenv("MESSAGE_DELAY_SECONDS", "1.0"))
 QUESTION_DELAY_SECONDS = float(os.getenv("QUESTION_DELAY_SECONDS", os.getenv("MESSAGE_DELAY_SECONDS", "0.0")))
 RESULT_DELAY_SECONDS = float(os.getenv("RESULT_DELAY_SECONDS", os.getenv("MESSAGE_DELAY_SECONDS", "0.2")))
 
