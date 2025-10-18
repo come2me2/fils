@@ -377,68 +377,38 @@ async def send_result(update: Update, context: ContextTypes.DEFAULT_TYPE, model_
 
 
 async def send_promo_code(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    # Send multiple debug messages to track execution
-    try:
-        await update.effective_chat.send_message("🔍 DEBUG: Starting promo code function...")
-        await update.effective_chat.send_message("🔍 DEBUG: After first message...")
-        await update.effective_chat.send_message("🔍 DEBUG: Before sleep...")
-    except Exception as e:
-        await update.effective_chat.send_message(f"🔍 DEBUG: Error in debug messages: {str(e)}")
-        return
+    await asyncio.sleep(MESSAGE_DELAY_SECONDS)
     
-    try:
-        await asyncio.sleep(1)  # Shorter sleep
-        await update.effective_chat.send_message("🔍 DEBUG: After sleep...")
-    except Exception as e:
-        await update.effective_chat.send_message(f"🔍 DEBUG: Error in sleep: {str(e)}")
-        return
-    
-    try:
-        await update.effective_chat.send_message("🔍 DEBUG: About to send promo...")
-        await update.effective_chat.send_message("🎉 Поздравляем! Ваш промокод: FILS1978")
-        await update.effective_chat.send_message("🔍 DEBUG: Promo sent!")
-    except Exception as e:
-        await update.effective_chat.send_message(f"🔍 DEBUG: Error sending promo: {str(e)}")
-        return
+    promo_text = (
+        "🎉 **Поздравляем!**\n\n"
+        "За прохождение квиза ты получаешь промокод на **5000₽**!\n\n"
+        "**Промокод:** `FILS1978`\n\n"
+        "💡 *Промокод действует 1 месяц и может быть использован при покупке любого дивана FILS Design.*"
+    )
+    await update.effective_chat.send_message(promo_text, parse_mode=ParseMode.MARKDOWN)
 
 
 async def send_contact_request(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    # Send multiple debug messages to track execution
-    try:
-        await update.effective_chat.send_message("🔍 DEBUG: Starting contact request function...")
-        await update.effective_chat.send_message("🔍 DEBUG: After first message...")
-        await update.effective_chat.send_message("🔍 DEBUG: Before sleep...")
-    except Exception as e:
-        await update.effective_chat.send_message(f"🔍 DEBUG: Error in debug messages: {str(e)}")
-        return
+    await asyncio.sleep(MESSAGE_DELAY_SECONDS)
     
-    try:
-        await asyncio.sleep(1)  # Shorter sleep
-        await update.effective_chat.send_message("🔍 DEBUG: After sleep...")
-    except Exception as e:
-        await update.effective_chat.send_message(f"🔍 DEBUG: Error in sleep: {str(e)}")
-        return
+    contact_text = (
+        "🎯 **Хочешь получить персональную консультацию?**\n\n"
+        "Наш дизайнер поможет:\n"
+        "• Подобрать идеальную ткань и цвет\n"
+        "• Рассчитать точные размеры\n"
+        "• Ответить на все вопросы о доставке\n"
+        "• Оформить заказ со скидкой\n\n"
+        "Оставь свой контакт, и мы свяжемся с тобой в течение часа! ⏰"
+    )
     
-    try:
-        await update.effective_chat.send_message("🔍 DEBUG: Setting user data...")
-        context.user_data[UD_AWAITING_CONTACT] = True
-        context.user_data[UD_CONTACT_RECEIVED] = False
-        await update.effective_chat.send_message("🔍 DEBUG: User data set...")
-        
-        await update.effective_chat.send_message("🔍 DEBUG: Creating keyboard...")
-        contact_kb = ReplyKeyboardMarkup(
-            [[KeyboardButton(text="📞 Получить консультацию", request_contact=True)]],
-            resize_keyboard=True,
-            one_time_keyboard=True,
-        )
-        await update.effective_chat.send_message("🔍 DEBUG: Keyboard created...")
-        
-        await update.effective_chat.send_message("🔍 DEBUG: About to send contact request...")
-        await update.effective_chat.send_message("🎯 Оставьте контакт для консультации", reply_markup=contact_kb)
-        await update.effective_chat.send_message("🔍 DEBUG: Contact request sent!")
-    except Exception as e:
-        await update.effective_chat.send_message(f"🔍 DEBUG: Error sending contact: {str(e)}")
-        return
+    context.user_data[UD_AWAITING_CONTACT] = True
+    context.user_data[UD_CONTACT_RECEIVED] = False
+    contact_kb = ReplyKeyboardMarkup(
+        [[KeyboardButton(text="📞 Получить консультацию", request_contact=True)]],
+        resize_keyboard=True,
+        one_time_keyboard=True,
+    )
+    await update.effective_chat.send_message(contact_text, reply_markup=contact_kb)
 
 
 async def on_contact(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
