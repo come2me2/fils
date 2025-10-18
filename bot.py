@@ -379,15 +379,29 @@ async def send_result_and_contact(update: Update, context: ContextTypes.DEFAULT_
     await asyncio.sleep(MESSAGE_DELAY_SECONDS)
 
     # Send promo code message
-    promo_code = "FILS1978"
-    
-    promo_text = (
-        "🎉 **Поздравляем!**\n\n"
-        f"За прохождение квиза ты получаешь промокод на **5000₽**!\n\n"
-        f"**Промокод:** `{promo_code}`\n\n"
-        "💡 *Промокод действует 1 месяц и может быть использован при покупке любого дивана FILS Design.*"
-    )
-    await update.effective_chat.send_message(promo_text, parse_mode=ParseMode.MARKDOWN)
+    try:
+        promo_code = "FILS1978"
+        
+        promo_text = (
+            "🎉 **Поздравляем!**\n\n"
+            f"За прохождение квиза ты получаешь промокод на **5000₽**!\n\n"
+            f"**Промокод:** `{promo_code}`\n\n"
+            "💡 *Промокод действует 1 месяц и может быть использован при покупке любого дивана FILS Design.*"
+        )
+        await update.effective_chat.send_message(promo_text, parse_mode=ParseMode.MARKDOWN)
+        
+        # Test message after successful promo code
+        try:
+            await update.effective_chat.send_message("🔍 DEBUG: Promo code sent successfully!")
+        except Exception:
+            pass
+            
+    except Exception as e:
+        # Send error message
+        try:
+            await update.effective_chat.send_message(f"🔍 DEBUG: Promo code error: {str(e)}")
+        except Exception:
+            pass
     
     # Test message after promo code
     try:
@@ -398,24 +412,38 @@ async def send_result_and_contact(update: Update, context: ContextTypes.DEFAULT_
     await asyncio.sleep(MESSAGE_DELAY_SECONDS)
 
     # Send contact request
-    contact_text = (
-        "🎯 **Хочешь получить персональную консультацию?**\n\n"
-        "Наш дизайнер поможет:\n"
-        "• Подобрать идеальную ткань и цвет\n"
-        "• Рассчитать точные размеры\n"
-        "• Ответить на все вопросы о доставке\n"
-        "• Оформить заказ со скидкой\n\n"
-        "Оставь свой контакт, и мы свяжемся с тобой в течение часа! ⏰"
-    )
-    
-    context.user_data[UD_AWAITING_CONTACT] = True
-    context.user_data[UD_CONTACT_RECEIVED] = False
-    contact_kb = ReplyKeyboardMarkup(
-        [[KeyboardButton(text="📞 Получить консультацию", request_contact=True)]],
-        resize_keyboard=True,
-        one_time_keyboard=True,
-    )
-    await update.effective_chat.send_message(contact_text, reply_markup=contact_kb)
+    try:
+        contact_text = (
+            "🎯 **Хочешь получить персональную консультацию?**\n\n"
+            "Наш дизайнер поможет:\n"
+            "• Подобрать идеальную ткань и цвет\n"
+            "• Рассчитать точные размеры\n"
+            "• Ответить на все вопросы о доставке\n"
+            "• Оформить заказ со скидкой\n\n"
+            "Оставь свой контакт, и мы свяжемся с тобой в течение часа! ⏰"
+        )
+        
+        context.user_data[UD_AWAITING_CONTACT] = True
+        context.user_data[UD_CONTACT_RECEIVED] = False
+        contact_kb = ReplyKeyboardMarkup(
+            [[KeyboardButton(text="📞 Получить консультацию", request_contact=True)]],
+            resize_keyboard=True,
+            one_time_keyboard=True,
+        )
+        await update.effective_chat.send_message(contact_text, reply_markup=contact_kb)
+        
+        # Test message after successful contact request
+        try:
+            await update.effective_chat.send_message("🔍 DEBUG: Contact request sent successfully!")
+        except Exception:
+            pass
+            
+    except Exception as e:
+        # Send error message
+        try:
+            await update.effective_chat.send_message(f"🔍 DEBUG: Contact request error: {str(e)}")
+        except Exception:
+            pass
     
     # Final test message
     try:
