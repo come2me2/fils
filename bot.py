@@ -355,74 +355,66 @@ def compute_recommendation(answers: List) -> str:
 
 
 async def send_result_and_contact(update: Update, context: ContextTypes.DEFAULT_TYPE, model_key: str) -> None:
+    # Send result message first
+    if RESULT_DELAY_SECONDS > 0:
+        await asyncio.sleep(RESULT_DELAY_SECONDS)
+
+    model = MODELS[model_key]
+    text = (
+        f"🛋 **{model['title']}**\n"
+        f"> {model['desc']}\n\n"
+        f"[Посмотреть {model['title']} →]({model['url']})"
+    )
+    link_kb = InlineKeyboardMarkup(
+        [[InlineKeyboardButton(text="🔍 Посмотреть все модели", url=URL_ALL)]]
+    )
+    await update.effective_chat.send_message(text, parse_mode=ParseMode.MARKDOWN, reply_markup=link_kb)
+
+    await asyncio.sleep(MESSAGE_DELAY_SECONDS)
+
+    # Send promo code message
     try:
-        if RESULT_DELAY_SECONDS > 0:
-            await asyncio.sleep(RESULT_DELAY_SECONDS)
-
-        # Send result message
-        model = MODELS[model_key]
-        text = (
-            f"🛋 **{model['title']}**\n"
-            f"> {model['desc']}\n\n"
-            f"[Посмотреть {model['title']} →]({model['url']})"
-        )
-        link_kb = InlineKeyboardMarkup(
-            [[InlineKeyboardButton(text="🔍 Посмотреть все модели", url=URL_ALL)]]
-        )
-        await update.effective_chat.send_message(text, parse_mode=ParseMode.MARKDOWN, reply_markup=link_kb)
-
-        await asyncio.sleep(MESSAGE_DELAY_SECONDS)
-
-        # Send promo code message (always send something)
-        promo_sent = False
-        try:
-            user_id = update.effective_user.id
-            promo_code = generate_promo_code(user_id, 5000)
-            
-            promo_text = (
-                "🎉 **Поздравляем!**\n\n"
-                f"За прохождение квиза ты получаешь персональный промокод на **5000₽**!\n\n"
-                f"**Промокод:** `{promo_code}`\n\n"
-                "💡 *Промокод действует 1 год и может быть использован при покупке любого дивана FILS Design.*"
-            )
-            await update.effective_chat.send_message(promo_text, parse_mode=ParseMode.MARKDOWN)
-            promo_sent = True
-            
-        except Exception:
-            # Fallback promo message
-            fallback_text = (
-                "🎉 **Поздравляем!**\n\n"
-                "За прохождение квиза ты получаешь персональный промокод на **5000₽**!\n\n"
-                "💡 *Свяжитесь с менеджером для получения промокода.*"
-            )
-            await update.effective_chat.send_message(fallback_text, parse_mode=ParseMode.MARKDOWN)
-            promo_sent = True
-
-        if promo_sent:
-            await asyncio.sleep(MESSAGE_DELAY_SECONDS)
-
-        # Send contact request (always send)
-        contact_text = (
-            "Хочешь, подберём ткань и конфигурацию под твой интерьер?\n"
-            "Оставь свой контакт, и дизайнер FILS свяжется с тобой лично."
-        )
-        context.user_data[UD_AWAITING_CONTACT] = True
-        context.user_data[UD_CONTACT_RECEIVED] = False
-        contact_kb = ReplyKeyboardMarkup(
-            [[KeyboardButton(text="📞 Оставить контакт", request_contact=True)]],
-            resize_keyboard=True,
-            one_time_keyboard=True,
-        )
-        await update.effective_chat.send_message(contact_text, reply_markup=contact_kb)
+        user_id = update.effective_user.id
+        promo_code = generate_promo_code(user_id, 5000)
         
-    except Exception as e:
-        # If everything fails, at least try to send a simple message
-        try:
-            await update.effective_chat.send_message(
-                "🎉 Спасибо за прохождение квиза! Свяжитесь с менеджером для получения промокода и консультации."
-            )
-        except Exception:
-            pass
+        promo_text = (
+            "🎉 **Поздравляем!**\n\n"
+            f"За прохождение квиза ты получаешь персональный промокод на **5000₽**!\n\n"
+            f"**Промокод:** `{promo_code}`\n\n"
+            "💡 *Промокод действует 1 год и может быть использован при покупке любого дивана FILS Design.*"
+        )
+        await update.effective_chat.send_message(promo_text, parse_mode=ParseMode.MARKDOWN)
+        
+    except Exception:
+        # Fallback promo message if database is not available
+        fallback_text = (
+            "🎉 **Поздравляем!**\n\n"
+            "За прохождение квиза ты получаешь персональный промокод на **5000₽**!\n\n"
+            "💡 *Свяжитесь с менеджером для получения промокода.*"
+        )
+        await update.effective_chat.send_message(fallback_text, parse_mode=ParseMode.MARKDOWN)
+
+    await asyncio.sleep(MESSAGE_DELAY_SECONDS)
+
+    # Send contact request
+    contact_text = (
+        "🎯 **Хочешь получить персональную консультацию?**\n\n"
+        "Наш дизайнер поможет:\n"
+        "• Подобрать идеальную ткань и цвет\n"
+        "• Рассчитать точные размеры\n"
+        "• Ответить на все вопросы о доставке\n"
+        "• Оформить заказ со скидкой\n\n"
+        "Оставь свой контакт, и мы свяжемся с тобой в течение часа! ⏰"
+    )
+    
+    context.user_data[UD_AWAITING_CONTACT] = True
+    context.user_data[UD_CONTACT_RECEIVED] = False
+    contact_kb = ReplyKeyboardMarkup(
+        [[KeyboardButton(text="📞 Получить консультацию", request_contact=True)]],
+        resize_keyboard=True,
+        one_time_keyboard=True,
+    )
+    await update.effective_chat.send_message(contact_text, reply_markup=contact_kb)
 
 
 async def on_contact(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -440,8 +432,14 @@ async def on_contact(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
     # Acknowledge to user
     try:
         await update.effective_chat.send_message(
-            "✅ Заявка принята. Менеджер FILS свяжется с вами в ближайшее время.",
+            "✅ **Отлично! Заявка принята.**\n\n"
+            "🎯 Наш дизайнер свяжется с вами в течение часа и поможет:\n"
+            "• Подобрать идеальную конфигурацию\n"
+            "• Рассчитать точную стоимость\n"
+            "• Ответить на все вопросы\n\n"
+            "📞 Ожидайте звонка!",
             reply_markup=ReplyKeyboardRemove(),
+            parse_mode=ParseMode.MARKDOWN,
         )
     except Exception:
         pass
@@ -474,8 +472,14 @@ async def on_phone_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     # Confirm to user
     try:
         await update.effective_chat.send_message(
-            "✅ Заявка принята. Менеджер FILS свяжется с вами в ближайшее время.",
+            "✅ **Отлично! Заявка принята.**\n\n"
+            "🎯 Наш дизайнер свяжется с вами в течение часа и поможет:\n"
+            "• Подобрать идеальную конфигурацию\n"
+            "• Рассчитать точную стоимость\n"
+            "• Ответить на все вопросы\n\n"
+            "📞 Ожидайте звонка!",
             reply_markup=ReplyKeyboardRemove(),
+            parse_mode=ParseMode.MARKDOWN,
         )
     except Exception:
         pass
