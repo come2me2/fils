@@ -8,7 +8,7 @@ from fastapi.responses import JSONResponse, HTMLResponse, RedirectResponse, Plai
 from telegram import Update
 
 from bot import build_application
-from db import init_db, list_users, stats_summary
+from db import init_db, list_users, stats_summary, get_promo_stats, get_user_promo_codes
 
 load_dotenv()
 
@@ -26,7 +26,7 @@ app = fastapi_app
 
 
 def admin_layout(*, title: str, active: str, body: str) -> HTMLResponse:
-    # active in {"users","stats","broadcasts","home"}
+    # active in {"users","stats","broadcasts","promos","home"}
     def a(href: str, text: str, key: str) -> str:
         on = " class=\"active\"" if key == active else ""
         return f"<a href=\"{href}\"{on}>{text}</a>"
@@ -81,6 +81,7 @@ def admin_layout(*, title: str, active: str, body: str) -> HTMLResponse:
             {a('/admin', 'Главная', 'home')}
             {a('/admin/users', 'Пользователи', 'users')}
             {a('/admin/stats', 'Статистика', 'stats')}
+            {a('/admin/promos', 'Промокоды', 'promos')}
             {a('/admin/broadcasts', 'Рассылки', 'broadcasts')}
             <a href="/admin/logout" class="muted">Выйти</a>
           </nav>
@@ -277,6 +278,7 @@ async def admin_stats(_: Any = Depends(require_admin)):
         pass
     try:
         s = stats_summary()
+        p = get_promo_stats()
         by_model_html = "".join(f"<li>{k}: {v}</li>" for k, v in s.get("by_model", {}).items())
         error_html = ""
     except Exception as e:
@@ -285,12 +287,14 @@ async def admin_stats(_: Any = Depends(require_admin)):
             if "relation \"users\" does not exist" in msg.lower() or "relation \"submissions\" does not exist" in msg.lower():
                 init_db()
                 s = stats_summary()
+                p = get_promo_stats()
                 by_model_html = "".join(f"<li>{k}: {v}</li>" for k, v in s.get("by_model", {}).items())
                 error_html = ""
             else:
                 raise
         except Exception:
             s = {"users": 0, "submissions": 0, "by_model": {}}
+            p = {"total_codes": 0, "used_codes": 0, "active_codes": 0, "total_used_amount": 0}
             by_model_html = ""
             error_html = f"<div style='color:#b00; margin:8px 0;'>DB error: {msg}</div>"
 
@@ -307,6 +311,11 @@ async def admin_stats(_: Any = Depends(require_admin)):
             '<div class="panel">'
             f"<p>Пользователи: <b>{s.get('users', 0)}</b></p>"
             f"<p>Квизов пройдено: <b>{s.get('submissions', 0)}</b></p>"
+            "<h3 class='muted' style='margin-top:12px;'>Промокоды</h3>"
+            f"<p>Всего выдано: <b>{p.get('total_codes', 0)}</b></p>"
+            f"<p>Использовано: <b>{p.get('used_codes', 0)}</b></p>"
+            f"<p>Активных: <b>{p.get('active_codes', 0)}</b></p>"
+            f"<p>Сумма использованных: <b>{p.get('total_used_amount', 0):,}₽</b></p>"
             "<h3 class='muted' style='margin-top:12px;'>По моделям</h3>"
             f"<ul>{by_model_html}</ul>"
             "</div>"
@@ -320,6 +329,89 @@ async def admin_migrate(_: Any = Depends(require_admin)):
         return PlainTextResponse("OK: schema ensured")
     except Exception as e:
         return PlainTextResponse(f"Error: {e}", status_code=500)
+
+
+@fastapi_app.get("/admin/promos", response_class=HTMLResponse)
+async def admin_promos(_: Any = Depends(require_admin)):
+    # Ensure schema
+    try:
+        init_db()
+    except Exception:
+        pass
+    
+    error_html = ""
+    try:
+        # Get recent promo codes with user info
+        from db import _connect, _DB_LOCK
+        with _DB_LOCK:
+            with _connect() as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        """
+                        SELECT 
+                          pc.code,
+                          pc.amount,
+                          pc.is_used,
+                          pc.used_at,
+                          pc.created_at,
+                          pc.expires_at,
+                          u.username,
+                          u.first_name,
+                          u.last_name
+                        FROM promo_codes pc
+                        LEFT JOIN users u ON pc.telegram_id = u.telegram_id
+                        ORDER BY pc.created_at DESC
+                        LIMIT 100
+                        """
+                    )
+                    cols = [d[0] for d in cur.description]
+                    rows_raw = cur.fetchall()
+        promos = [dict(zip(cols, r)) for r in rows_raw]
+        
+        rows = "".join(
+            f"<tr>"
+            f"<td><code>{p.get('code')}</code></td>"
+            f"<td>{p.get('amount')}₽</td>"
+            f"<td>{'✅' if p.get('is_used') else '⏳'}</td>"
+            f"<td>@{p.get('username') or ''} {p.get('first_name') or ''} {p.get('last_name') or ''}</td>"
+            f"<td>{p.get('created_at', '')[:10] if p.get('created_at') else ''}</td>"
+            f"<td>{p.get('used_at', '')[:10] if p.get('used_at') else '-'}</td>"
+            f"<td>{p.get('expires_at', '')[:10] if p.get('expires_at') else ''}</td>"
+            f"</tr>"
+            for p in promos
+        )
+        
+    except Exception as e:
+        msg = str(e)
+        try:
+            if "relation \"promo_codes\" does not exist" in msg.lower():
+                init_db()
+                promos = []
+                rows = ""
+                error_html = ""
+            else:
+                raise
+        except Exception:
+            promos = []
+            rows = ""
+            error_html = f"<div style='color:#b00; margin:8px 0;'>DB error: {msg}</div>"
+
+    return admin_layout(
+        title="Промокоды",
+        active="promos",
+        body=(
+            "<h2>Промокоды</h2>"
+            f"{error_html}"
+            '<div class="panel">'
+            '<div style="overflow:auto">'
+            '<table>'
+            '<tr><th>Код</th><th>Сумма</th><th>Статус</th><th>Пользователь</th><th>Создан</th><th>Использован</th><th>Истекает</th></tr>'
+            f"{rows}"
+            '</table>'
+            '</div>'
+            '</div>'
+        ),
+    )
 
 
 @fastapi_app.get("/admin/broadcasts", response_class=HTMLResponse)

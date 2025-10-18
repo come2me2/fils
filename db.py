@@ -49,6 +49,20 @@ def init_db() -> None:
                     );
                     """
                 )
+                cur.execute(
+                    """
+                    CREATE TABLE IF NOT EXISTS promo_codes (
+                      id BIGSERIAL PRIMARY KEY,
+                      code TEXT UNIQUE NOT NULL,
+                      telegram_id BIGINT REFERENCES users(telegram_id) ON DELETE SET NULL,
+                      amount INTEGER DEFAULT 5000,
+                      is_used BOOLEAN DEFAULT FALSE,
+                      used_at TIMESTAMPTZ,
+                      created_at TIMESTAMPTZ,
+                      expires_at TIMESTAMPTZ
+                    );
+                    """
+                )
 
 
 def upsert_user(user: Dict[str, Any]) -> None:
@@ -164,3 +178,77 @@ def stats_summary() -> Dict[str, Any]:
                 pairs = cur.fetchall()
     by_model = {k: v for k, v in pairs}
     return {"users": users_count, "submissions": subs_count, "by_model": by_model}
+
+
+def generate_promo_code(telegram_id: int, amount: int = 5000) -> str:
+    """Generate a unique promo code for user"""
+    import random
+    import string
+    
+    now = datetime.utcnow()
+    expires_at = now.replace(year=now.year + 1)  # Valid for 1 year
+    
+    # Generate code: FILS + 6 random chars
+    random_part = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+    code = f"FILS{random_part}"
+    
+    with _DB_LOCK:
+        with _connect() as conn:
+            with conn.cursor() as cur:
+                # Ensure uniqueness
+                while True:
+                    cur.execute("SELECT id FROM promo_codes WHERE code = %s", (code,))
+                    if not cur.fetchone():
+                        break
+                    random_part = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+                    code = f"FILS{random_part}"
+                
+                cur.execute(
+                    """
+                    INSERT INTO promo_codes (code, telegram_id, amount, created_at, expires_at)
+                    VALUES (%s, %s, %s, %s, %s)
+                    """,
+                    (code, telegram_id, amount, now.isoformat(), expires_at.isoformat())
+                )
+    
+    return code
+
+
+def get_user_promo_codes(telegram_id: int) -> List[Dict[str, Any]]:
+    """Get all promo codes for a user"""
+    with _DB_LOCK:
+        with _connect() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT code, amount, is_used, used_at, created_at, expires_at
+                    FROM promo_codes 
+                    WHERE telegram_id = %s 
+                    ORDER BY created_at DESC
+                    """,
+                    (telegram_id,)
+                )
+                cols = [d[0] for d in cur.description]
+                rows_raw = cur.fetchall()
+    return [dict(zip(cols, r)) for r in rows_raw]
+
+
+def get_promo_stats() -> Dict[str, Any]:
+    """Get promo codes statistics"""
+    with _DB_LOCK:
+        with _connect() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT COUNT(*) FROM promo_codes")
+                total_codes = cur.fetchone()[0]
+                cur.execute("SELECT COUNT(*) FROM promo_codes WHERE is_used = TRUE")
+                used_codes = cur.fetchone()[0]
+                cur.execute("SELECT SUM(amount) FROM promo_codes WHERE is_used = TRUE")
+                total_used_amount = cur.fetchone()[0] or 0
+                cur.execute("SELECT COUNT(*) FROM promo_codes WHERE expires_at > NOW() AND is_used = FALSE")
+                active_codes = cur.fetchone()[0]
+    return {
+        "total_codes": total_codes,
+        "used_codes": used_codes,
+        "active_codes": active_codes,
+        "total_used_amount": total_used_amount
+    }

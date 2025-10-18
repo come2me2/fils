@@ -3,7 +3,7 @@ import os
 from typing import Dict, List
 
 from dotenv import load_dotenv
-from db import upsert_user, touch_user_active, add_submission, update_user_phone
+from db import upsert_user, touch_user_active, add_submission, update_user_phone, generate_promo_code
 from telegram import (
     InlineKeyboardButton,
     InlineKeyboardMarkup,
@@ -370,6 +370,24 @@ async def send_result_and_contact(update: Update, context: ContextTypes.DEFAULT_
 
     await asyncio.sleep(MESSAGE_DELAY_SECONDS)
 
+    # Generate and send promo code
+    try:
+        user_id = update.effective_user.id
+        promo_code = generate_promo_code(user_id, 5000)
+        
+        promo_text = (
+            "🎉 **Поздравляем!**\n\n"
+            f"За прохождение квиза ты получаешь персональный промокод на **5000₽**!\n\n"
+            f"**Промокод:** `{promo_code}`\n\n"
+            "💡 *Промокод действует 1 год и может быть использован при покупке любого дивана FILS Design.*"
+        )
+        await update.effective_chat.send_message(promo_text, parse_mode=ParseMode.MARKDOWN)
+        
+        await asyncio.sleep(MESSAGE_DELAY_SECONDS)
+    except Exception:
+        # Silent failure - promo code generation shouldn't break the flow
+        pass
+
     contact_text = (
         "Хочешь, подберём ткань и конфигурацию под твой интерьер?\n"
         "Оставь свой контакт, и дизайнер FILS свяжется с тобой лично."
@@ -449,6 +467,12 @@ async def forward_to_manager(context: ContextTypes.DEFAULT_TYPE, *, user_full_na
     try:
         answers = context.user_data.get(UD_ANSWERS, [])
         model_key = context.user_data.get(UD_RESULT, "?")
+        
+        # Get user's latest promo code
+        from db import get_user_promo_codes
+        user_promos = get_user_promo_codes(user_id)
+        latest_promo = user_promos[0] if user_promos else None
+        
         lines = [
             "Новая заявка из бота FILS Design — подбор дивана:",
             f"Пользователь: {user_full_name} (@{username or '-'}; id={user_id})",
@@ -463,6 +487,10 @@ async def forward_to_manager(context: ContextTypes.DEFAULT_TYPE, *, user_full_na
         lines.append("")
         lines.append(f"Рекомендация: {model.get('title', model_key)}")
         lines.append(f"Ссылка: {model.get('url', URL_ALL)}")
+        
+        if latest_promo:
+            lines.append("")
+            lines.append(f"🎁 Выдан промокод: {latest_promo['code']} (5000₽)")
 
         manager_chat_id = int(MANAGER_CHAT_ID) if MANAGER_CHAT_ID else None
         if manager_chat_id:

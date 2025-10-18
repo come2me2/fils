@@ -6,7 +6,9 @@
 - Линейный квиз из 4 вопросов с логикой подбора модели.
 - Поддержка Markdown и эмодзи, паузы 1.5–2 сек для плавности.
 - Финальная рекомендация одной из 4 моделей: CLOUD, GOCCI, FLOUS, JUNGLE.
+- **Автоматическая выдача персонального промокода на 5000₽** за прохождение квиза.
 - Запрос контакта (номер телефона) по кнопке и пересылка заявки менеджеру (чат-ID).
+- Админ-панель с управлением промокодами и статистикой.
 
 ## Быстрый старт
 1) Установите зависимости:
@@ -14,14 +16,26 @@
 pip install -r requirements.txt
 ```
 
-2) Создайте `.env` по примеру:
+2) Создайте `.env` файл с переменными:
 ```bash
-cp .env.example .env
+# Telegram Bot Configuration
+TELEGRAM_BOT_TOKEN=your_bot_token_here
+MANAGER_CHAT_ID=123456789
+
+# Database Configuration (Neon PostgreSQL)
+DATABASE_URL=postgresql://username:password@hostname:port/database
+
+# Webhook Security
+TELEGRAM_WEBHOOK_SECRET=your_webhook_secret_here
+
+# Admin Panel Security
+ADMIN_SECRET=your_admin_password_here
+
+# Message Delays (optional)
+MESSAGE_DELAY_SECONDS=1.7
+QUESTION_DELAY_SECONDS=0.0
+RESULT_DELAY_SECONDS=0.2
 ```
-Заполните переменные:
-- `TELEGRAM_BOT_TOKEN` — токен бота от BotFather
-- `MANAGER_CHAT_ID` — ID чата/пользователя менеджера, куда отправлять заявку (целое число)
-- `MESSAGE_DELAY_SECONDS` — опционально, секунда задержки между сообщениями (по умолчанию 1.7)
 
 3) Запустите бота:
 ```bash
@@ -38,8 +52,10 @@ python bot.py
 3) В настройках проекта Vercel задайте переменные окружения:
    - `TELEGRAM_BOT_TOKEN`
    - `MANAGER_CHAT_ID`
+   - `DATABASE_URL` — строка подключения к PostgreSQL
+   - `TELEGRAM_WEBHOOK_SECRET` — секрет для проверки заголовка Telegram
+   - `ADMIN_SECRET` — пароль для админ-панели
    - `MESSAGE_DELAY_SECONDS` (опц.)
-   - `TELEGRAM_WEBHOOK_SECRET` — секрет для проверки заголовка Telegram.
 
 4) После деплоя получите домен проекта, например: `https://your-project.vercel.app`.
 
@@ -64,10 +80,10 @@ https://your-project.vercel.app/api/health
 - Уют / семейный отдых / дом за городом → **JUNGLE**
 
 ## Структура
-- `bot.py` — основной код бота (вопросы, логика, задержки, контакт).
+- `bot.py` — основной код бота (вопросы, логика, задержки, контакт, промокоды).
+- `db.py` — работа с PostgreSQL базой данных и промокодами.
 - `requirements.txt` — зависимости.
-- `.env.example` — пример конфигурации окружения.
-- `api/telegram.py` — FastAPI webhook для Vercel.
+- `api/telegram.py` — FastAPI webhook для Vercel с админ-панелью.
 - `vercel.json` — конфигурация функций и роутинга для Vercel.
 
 ## Заметки по эксплуатации
@@ -79,3 +95,17 @@ https://your-project.vercel.app/api/health
   - FLOUS: https://filsdesign.ru/sofas/flous
   - JUNGLE: https://filsdesign.ru/sofas/jungle
   - Все модели: https://filsdesign.ru/sofas
+
+## Система промокодов
+- Каждый пользователь получает персональный промокод на 5000₽ за прохождение квиза
+- Промокоды генерируются в формате `FILSXXXXXX` (6 случайных символов)
+- Срок действия промокода: 1 год с момента выдачи
+- Все промокоды сохраняются в базе данных с привязкой к пользователю
+- Админ-панель позволяет просматривать все выданные промокоды и статистику
+
+## Админ-панель
+Доступна по адресу `/admin` после деплоя:
+- **Пользователи** — список всех пользователей бота
+- **Статистика** — общая статистика и данные по промокодам
+- **Промокоды** — управление и просмотр всех выданных промокодов
+- **Рассылки** — отправка сообщений всем пользователям
