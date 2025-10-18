@@ -288,23 +288,9 @@ async def handle_q4(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     # Send result first
     await send_result(update, context, model_key)
     
-    # Force update - add debug message
-    await update.effective_chat.send_message("🔄 Обновление: отправляем промокод...")
-    
     # Then send promo code and contact separately
-    try:
-        await update.effective_chat.send_message("🔍 DEBUG: About to call send_promo_code...")
-        await send_promo_code(update, context)
-        await update.effective_chat.send_message("🔍 DEBUG: send_promo_code completed!")
-    except Exception as e:
-        await update.effective_chat.send_message(f"🔍 DEBUG: Error in send_promo_code: {str(e)}")
-    
-    try:
-        await update.effective_chat.send_message("🔍 DEBUG: About to call send_contact_request...")
-        await send_contact_request(update, context)
-        await update.effective_chat.send_message("🔍 DEBUG: send_contact_request completed!")
-    except Exception as e:
-        await update.effective_chat.send_message(f"🔍 DEBUG: Error in send_contact_request: {str(e)}")
+    await send_promo_code(update, context)
+    await send_contact_request(update, context)
 
 
 def compute_recommendation(answers: List) -> str:
@@ -392,9 +378,7 @@ async def send_result(update: Update, context: ContextTypes.DEFAULT_TYPE, model_
 
 
 async def send_promo_code(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await update.effective_chat.send_message("🔍 DEBUG: Inside send_promo_code function...")
     await asyncio.sleep(MESSAGE_DELAY_SECONDS)
-    await update.effective_chat.send_message("🔍 DEBUG: After sleep in send_promo_code...")
     
     promo_text = (
         "🎉 **Поздравляем!**\n\n"
@@ -402,15 +386,11 @@ async def send_promo_code(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         "**Промокод:** `FILS1978`\n\n"
         "💡 *Промокод действует 1 месяц и может быть использован при покупке любого дивана FILS Design.*"
     )
-    await update.effective_chat.send_message("🔍 DEBUG: About to send promo message...")
     await update.effective_chat.send_message(promo_text, parse_mode=ParseMode.MARKDOWN)
-    await update.effective_chat.send_message("🔍 DEBUG: Promo message sent!")
 
 
 async def send_contact_request(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await update.effective_chat.send_message("🔍 DEBUG: Inside send_contact_request function...")
     await asyncio.sleep(MESSAGE_DELAY_SECONDS)
-    await update.effective_chat.send_message("🔍 DEBUG: After sleep in send_contact_request...")
     
     contact_text = (
         "🎯 **Хочешь получить персональную консультацию?**\n\n"
@@ -422,22 +402,14 @@ async def send_contact_request(update: Update, context: ContextTypes.DEFAULT_TYP
         "Оставь свой контакт, и мы свяжемся с тобой в течение часа! ⏰"
     )
     
-    await update.effective_chat.send_message("🔍 DEBUG: Setting user data...")
     context.user_data[UD_AWAITING_CONTACT] = True
     context.user_data[UD_CONTACT_RECEIVED] = False
-    await update.effective_chat.send_message("🔍 DEBUG: User data set...")
-    
-    await update.effective_chat.send_message("🔍 DEBUG: Creating keyboard...")
     contact_kb = ReplyKeyboardMarkup(
         [[KeyboardButton(text="📞 Получить консультацию", request_contact=True)]],
         resize_keyboard=True,
         one_time_keyboard=True,
     )
-    await update.effective_chat.send_message("🔍 DEBUG: Keyboard created...")
-    
-    await update.effective_chat.send_message("🔍 DEBUG: About to send contact message...")
     await update.effective_chat.send_message(contact_text, reply_markup=contact_kb)
-    await update.effective_chat.send_message("🔍 DEBUG: Contact message sent!")
 
 
 async def on_contact(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
