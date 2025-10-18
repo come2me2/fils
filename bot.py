@@ -392,8 +392,16 @@ async def send_result_and_contact(update: Update, context: ContextTypes.DEFAULT_
 
     # Send promo code message
     try:
+        await update.effective_chat.send_message("🔍 DEBUG: About to generate promo code...")
+    except Exception:
+        pass
+    
+    try:
         user_id = update.effective_user.id
+        await update.effective_chat.send_message(f"🔍 DEBUG: User ID: {user_id}")
+        
         promo_code = generate_promo_code(user_id, 5000)
+        await update.effective_chat.send_message(f"🔍 DEBUG: Generated promo code: {promo_code}")
         
         promo_text = (
             "🎉 **Поздравляем!**\n\n"
@@ -409,7 +417,13 @@ async def send_result_and_contact(update: Update, context: ContextTypes.DEFAULT_
         except Exception:
             pass
         
-    except Exception:
+    except Exception as e:
+        # Send error details
+        try:
+            await update.effective_chat.send_message(f"🔍 DEBUG: Promo code error: {str(e)}")
+        except Exception:
+            pass
+        
         # Fallback promo message if database is not available
         fallback_text = (
             "🎉 **Поздравляем!**\n\n"
