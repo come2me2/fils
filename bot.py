@@ -403,37 +403,42 @@ async def send_promo_code(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
 
 async def send_contact_request(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    # Send multiple debug messages to track execution
     try:
         await update.effective_chat.send_message("🔍 DEBUG: Starting contact request function...")
-    except Exception:
-        pass
-    
-    await asyncio.sleep(MESSAGE_DELAY_SECONDS)
+        await update.effective_chat.send_message("🔍 DEBUG: After first message...")
+        await update.effective_chat.send_message("🔍 DEBUG: Before sleep...")
+    except Exception as e:
+        await update.effective_chat.send_message(f"🔍 DEBUG: Error in debug messages: {str(e)}")
+        return
     
     try:
-        # Send simple test message first
-        await update.effective_chat.send_message("🔍 DEBUG: About to send simple contact request...")
-        
-        # Send very simple contact request
+        await asyncio.sleep(1)  # Shorter sleep
+        await update.effective_chat.send_message("🔍 DEBUG: After sleep...")
+    except Exception as e:
+        await update.effective_chat.send_message(f"🔍 DEBUG: Error in sleep: {str(e)}")
+        return
+    
+    try:
+        await update.effective_chat.send_message("🔍 DEBUG: Setting user data...")
         context.user_data[UD_AWAITING_CONTACT] = True
         context.user_data[UD_CONTACT_RECEIVED] = False
+        await update.effective_chat.send_message("🔍 DEBUG: User data set...")
+        
+        await update.effective_chat.send_message("🔍 DEBUG: Creating keyboard...")
         contact_kb = ReplyKeyboardMarkup(
             [[KeyboardButton(text="📞 Получить консультацию", request_contact=True)]],
             resize_keyboard=True,
             one_time_keyboard=True,
         )
-        await update.effective_chat.send_message("🎯 Оставьте контакт для консультации", reply_markup=contact_kb)
+        await update.effective_chat.send_message("🔍 DEBUG: Keyboard created...")
         
-        try:
-            await update.effective_chat.send_message("🔍 DEBUG: Simple contact request sent successfully!")
-        except Exception:
-            pass
-            
+        await update.effective_chat.send_message("🔍 DEBUG: About to send contact request...")
+        await update.effective_chat.send_message("🎯 Оставьте контакт для консультации", reply_markup=contact_kb)
+        await update.effective_chat.send_message("🔍 DEBUG: Contact request sent!")
     except Exception as e:
-        try:
-            await update.effective_chat.send_message(f"🔍 DEBUG: Contact request error: {str(e)}")
-        except Exception:
-            pass
+        await update.effective_chat.send_message(f"🔍 DEBUG: Error sending contact: {str(e)}")
+        return
 
 
 async def on_contact(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
