@@ -185,33 +185,50 @@ def generate_promo_code(telegram_id: int, amount: int = 5000) -> str:
     import random
     import string
     
-    now = datetime.utcnow()
-    expires_at = now.replace(year=now.year + 1)  # Valid for 1 year
+    print(f"DEBUG: Starting promo code generation for user {telegram_id}")  # Debug log
     
-    # Generate code: FILS + 6 random chars
-    random_part = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
-    code = f"FILS{random_part}"
-    
-    with _DB_LOCK:
-        with _connect() as conn:
-            with conn.cursor() as cur:
-                # Ensure uniqueness
-                while True:
-                    cur.execute("SELECT id FROM promo_codes WHERE code = %s", (code,))
-                    if not cur.fetchone():
-                        break
-                    random_part = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
-                    code = f"FILS{random_part}"
-                
-                cur.execute(
-                    """
-                    INSERT INTO promo_codes (code, telegram_id, amount, created_at, expires_at)
-                    VALUES (%s, %s, %s, %s, %s)
-                    """,
-                    (code, telegram_id, amount, now.isoformat(), expires_at.isoformat())
-                )
-    
-    return code
+    try:
+        now = datetime.utcnow()
+        expires_at = now.replace(year=now.year + 1)  # Valid for 1 year
+        
+        # Generate code: FILS + 6 random chars
+        random_part = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+        code = f"FILS{random_part}"
+        
+        print(f"DEBUG: Generated initial code: {code}")  # Debug log
+        
+        with _DB_LOCK:
+            with _connect() as conn:
+                with conn.cursor() as cur:
+                    # Ensure uniqueness
+                    attempts = 0
+                    while attempts < 10:  # Prevent infinite loop
+                        cur.execute("SELECT id FROM promo_codes WHERE code = %s", (code,))
+                        if not cur.fetchone():
+                            break
+                        random_part = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+                        code = f"FILS{random_part}"
+                        attempts += 1
+                        print(f"DEBUG: Code collision, trying: {code}")  # Debug log
+                    
+                    if attempts >= 10:
+                        raise Exception("Failed to generate unique code after 10 attempts")
+                    
+                    print(f"DEBUG: Inserting promo code: {code}")  # Debug log
+                    cur.execute(
+                        """
+                        INSERT INTO promo_codes (code, telegram_id, amount, created_at, expires_at)
+                        VALUES (%s, %s, %s, %s, %s)
+                        """,
+                        (code, telegram_id, amount, now.isoformat(), expires_at.isoformat())
+                    )
+                    print(f"DEBUG: Promo code inserted successfully")  # Debug log
+        
+        return code
+        
+    except Exception as e:
+        print(f"ERROR: Failed to generate promo code: {e}")  # Debug log
+        raise
 
 
 def get_user_promo_codes(telegram_id: int) -> List[Dict[str, Any]]:

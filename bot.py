@@ -354,6 +354,8 @@ def compute_recommendation(answers: List) -> str:
 
 
 async def send_result_and_contact(update: Update, context: ContextTypes.DEFAULT_TYPE, model_key: str) -> None:
+    print(f"DEBUG: send_result_and_contact called with model: {model_key}")  # Debug log
+    
     if RESULT_DELAY_SECONDS > 0:
         await asyncio.sleep(RESULT_DELAY_SECONDS)
 
@@ -367,13 +369,16 @@ async def send_result_and_contact(update: Update, context: ContextTypes.DEFAULT_
         [[InlineKeyboardButton(text="🔍 Посмотреть все модели", url=URL_ALL)]]
     )
     await update.effective_chat.send_message(text, parse_mode=ParseMode.MARKDOWN, reply_markup=link_kb)
+    print(f"DEBUG: Result message sent for {model_key}")  # Debug log
 
     await asyncio.sleep(MESSAGE_DELAY_SECONDS)
 
     # Generate and send promo code
     try:
         user_id = update.effective_user.id
+        print(f"DEBUG: Generating promo code for user {user_id}")  # Debug log
         promo_code = generate_promo_code(user_id, 5000)
+        print(f"DEBUG: Generated promo code: {promo_code}")  # Debug log
         
         promo_text = (
             "🎉 **Поздравляем!**\n\n"
@@ -382,11 +387,22 @@ async def send_result_and_contact(update: Update, context: ContextTypes.DEFAULT_
             "💡 *Промокод действует 1 год и может быть использован при покупке любого дивана FILS Design.*"
         )
         await update.effective_chat.send_message(promo_text, parse_mode=ParseMode.MARKDOWN)
+        print(f"DEBUG: Promo code message sent")  # Debug log
         
         await asyncio.sleep(MESSAGE_DELAY_SECONDS)
-    except Exception:
-        # Silent failure - promo code generation shouldn't break the flow
-        pass
+    except Exception as e:
+        # Log the error for debugging
+        print(f"ERROR: Failed to generate/send promo code: {e}")
+        # Send fallback message
+        try:
+            fallback_text = (
+                "🎉 **Поздравляем!**\n\n"
+                "За прохождение квиза ты получаешь персональный промокод на **5000₽**!\n\n"
+                "💡 *Свяжитесь с менеджером для получения промокода.*"
+            )
+            await update.effective_chat.send_message(fallback_text, parse_mode=ParseMode.MARKDOWN)
+        except Exception:
+            pass
 
     contact_text = (
         "Хочешь, подберём ткань и конфигурацию под твой интерьер?\n"
@@ -400,6 +416,7 @@ async def send_result_and_contact(update: Update, context: ContextTypes.DEFAULT_
         one_time_keyboard=True,
     )
     await update.effective_chat.send_message(contact_text, reply_markup=contact_kb)
+    print(f"DEBUG: Contact request message sent")  # Debug log
 
 
 async def on_contact(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
