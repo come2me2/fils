@@ -377,30 +377,29 @@ async def send_result(update: Update, context: ContextTypes.DEFAULT_TYPE, model_
 
 
 async def send_promo_code(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    # Send multiple debug messages to track execution
     try:
         await update.effective_chat.send_message("🔍 DEBUG: Starting promo code function...")
-    except Exception:
-        pass
-    
-    await asyncio.sleep(MESSAGE_DELAY_SECONDS)
+        await update.effective_chat.send_message("🔍 DEBUG: After first message...")
+        await update.effective_chat.send_message("🔍 DEBUG: Before sleep...")
+    except Exception as e:
+        await update.effective_chat.send_message(f"🔍 DEBUG: Error in debug messages: {str(e)}")
+        return
     
     try:
-        # Send simple test message first
-        await update.effective_chat.send_message("🔍 DEBUG: About to send simple promo message...")
-        
-        # Send very simple promo message
-        await update.effective_chat.send_message("🎉 Поздравляем! Ваш промокод: FILS1978")
-        
-        try:
-            await update.effective_chat.send_message("🔍 DEBUG: Simple promo code sent successfully!")
-        except Exception:
-            pass
-            
+        await asyncio.sleep(1)  # Shorter sleep
+        await update.effective_chat.send_message("🔍 DEBUG: After sleep...")
     except Exception as e:
-        try:
-            await update.effective_chat.send_message(f"🔍 DEBUG: Promo code error: {str(e)}")
-        except Exception:
-            pass
+        await update.effective_chat.send_message(f"🔍 DEBUG: Error in sleep: {str(e)}")
+        return
+    
+    try:
+        await update.effective_chat.send_message("🔍 DEBUG: About to send promo...")
+        await update.effective_chat.send_message("🎉 Поздравляем! Ваш промокод: FILS1978")
+        await update.effective_chat.send_message("🔍 DEBUG: Promo sent!")
+    except Exception as e:
+        await update.effective_chat.send_message(f"🔍 DEBUG: Error sending promo: {str(e)}")
+        return
 
 
 async def send_contact_request(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
