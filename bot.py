@@ -287,6 +287,9 @@ async def handle_q4(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     # Send result first
     await send_result(update, context, model_key)
     
+    # Force update - add debug message
+    await update.effective_chat.send_message("🔄 Обновление: отправляем промокод...")
+    
     # Then send promo code and contact separately
     await send_promo_code(update, context)
     await send_contact_request(update, context)
