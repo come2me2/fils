@@ -284,7 +284,12 @@ async def handle_q4(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     except Exception:
         pass
 
-    await send_result_and_contact(update, context, model_key)
+    # Send result first
+    await send_result(update, context, model_key)
+    
+    # Then send promo code and contact separately
+    await send_promo_code(update, context)
+    await send_contact_request(update, context)
 
 
 def compute_recommendation(answers: List) -> str:
@@ -354,7 +359,7 @@ def compute_recommendation(answers: List) -> str:
     return best
 
 
-async def send_result_and_contact(update: Update, context: ContextTypes.DEFAULT_TYPE, model_key: str) -> None:
+async def send_result(update: Update, context: ContextTypes.DEFAULT_TYPE, model_key: str) -> None:
     # Send result message first
     if RESULT_DELAY_SECONDS > 0:
         await asyncio.sleep(RESULT_DELAY_SECONDS)
@@ -370,15 +375,15 @@ async def send_result_and_contact(update: Update, context: ContextTypes.DEFAULT_
     )
     await update.effective_chat.send_message(text, parse_mode=ParseMode.MARKDOWN, reply_markup=link_kb)
 
-    # Test message to confirm we reach promo code section
+
+async def send_promo_code(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     try:
-        await update.effective_chat.send_message("🔍 DEBUG: About to send promo code...")
+        await update.effective_chat.send_message("🔍 DEBUG: Starting promo code function...")
     except Exception:
         pass
-
+    
     await asyncio.sleep(MESSAGE_DELAY_SECONDS)
-
-    # Send promo code message
+    
     try:
         promo_code = "FILS1978"
         
@@ -390,28 +395,26 @@ async def send_result_and_contact(update: Update, context: ContextTypes.DEFAULT_
         )
         await update.effective_chat.send_message(promo_text)
         
-        # Test message after successful promo code
         try:
             await update.effective_chat.send_message("🔍 DEBUG: Promo code sent successfully!")
         except Exception:
             pass
             
     except Exception as e:
-        # Send error message
         try:
             await update.effective_chat.send_message(f"🔍 DEBUG: Promo code error: {str(e)}")
         except Exception:
             pass
-    
-    # Test message after promo code
+
+
+async def send_contact_request(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     try:
-        await update.effective_chat.send_message("🔍 DEBUG: Promo code sent, now sending contact request...")
+        await update.effective_chat.send_message("🔍 DEBUG: Starting contact request function...")
     except Exception:
         pass
-
+    
     await asyncio.sleep(MESSAGE_DELAY_SECONDS)
-
-    # Send contact request
+    
     try:
         contact_text = (
             "🎯 Хочешь получить персональную консультацию?\n\n"
@@ -432,24 +435,16 @@ async def send_result_and_contact(update: Update, context: ContextTypes.DEFAULT_
         )
         await update.effective_chat.send_message(contact_text, reply_markup=contact_kb)
         
-        # Test message after successful contact request
         try:
             await update.effective_chat.send_message("🔍 DEBUG: Contact request sent successfully!")
         except Exception:
             pass
             
     except Exception as e:
-        # Send error message
         try:
             await update.effective_chat.send_message(f"🔍 DEBUG: Contact request error: {str(e)}")
         except Exception:
             pass
-    
-    # Final test message
-    try:
-        await update.effective_chat.send_message("🔍 DEBUG: Contact request sent, function completed!")
-    except Exception:
-        pass
 
 
 async def on_contact(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
